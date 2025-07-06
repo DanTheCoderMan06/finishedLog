@@ -1,0 +1,167 @@
+/* --- Global Styles & Font Import --- */
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #f4f7f9;
+    color: #333;
+    margin: 0;
+    padding: 2rem;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+}
+
+/* --- Main Container --- */
+.container {
+    width: 100%;
+    max-width: 900px;
+    text-align: center;
+}
+
+.main-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #2c3e50;
+    margin-bottom: 2rem;
+}
+
+.main-title strong {
+    font-weight: 700;
+    color: #3498db;
+}
+
+/* --- Table Styling --- */
+.table-container {
+    background-color: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.07);
+    border: 1px solid #e0e0e0;
+    overflow: visible;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse; /* Removes space between cell borders */
+}
+
+/* --- Table Header --- */
+thead tr {
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #e9ecef;
+}
+
+th {
+    padding: 1rem 1.5rem;
+    text-align: left;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* --- Table Body --- */
+td {
+    padding: 1rem 1.5rem;
+    font-size: 1rem;
+    color: #495057;
+    border-bottom: 1px solid #e9ecef;
+    vertical-align: middle;
+}
+
+/* Remove border from the last row for a cleaner look */
+tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Add a hover effect for better user experience on standard rows */
+tbody tr:not(.status-lost-service):not(.status-recovered):not(.status-info):hover {
+    background-color: #f1f3f5;
+}
+
+/* --- Action Button and Column --- */
+.actions-column {
+    text-align: center;
+}
+
+.action-btn {
+    background-color: #3498db;
+    color: #ffffff;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    display: inline-block;
+    transition: background-color 0.2s ease-in-out;
+}
+
+.action-btn:hover {
+    background-color: #2980b9;
+}
+
+/* --- History Table Special Rows --- */
+.status-lost-service td,
+.status-recovered td,
+.status-info td {
+    text-align: center;
+    font-weight: 500;
+}
+.status-lost-service td {
+    background-color: #e9ecef; color: #6c757d; font-style: italic;
+}
+.status-recovered td {
+    background-color: #d1fae5; color: #065f46;
+}
+.status-info td {
+    background-color: #dbeafe; color: #1e40af;
+}
+
+/* --- NEW STYLES FOR EVENT LOG --- */
+
+/* Event Type Indicators */
+.event {
+    padding: 0.25rem 0.6rem;
+    border-radius: 9999px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    display: inline-block;
+}
+.event-switch { background-color: #dbeafe; color: #1e40af; }
+.event-loss { background-color: #fef3c7; color: #92400e; }
+.event-error { background-color: #fee2e2; color: #991b1b; }
+
+/* Hover-to-show Info Tooltip */
+.hoverable-row {
+    position: relative; /* Parent must be relative for child's absolute positioning */
+}
+
+.row-info {
+    visibility: hidden; /* Hide by default */
+    opacity: 0;
+    position: absolute;
+    bottom: 100%; /* Position above the row */
+    left: 50%;
+    transform: translateX(-50%); /* Center the tooltip horizontally */
+    margin-bottom: 8px; /* Space between row and tooltip */
+    
+    background-color: #2c3e50; /* Dark background */
+    color: #ffffff; /* White text */
+    text-align: center;
+    font-size: 0.85rem;
+    padding: 8px 12px;
+    border-radius: 6px;
+    z-index: 10;
+    
+    width: max-content; /* Make tooltip width fit its content */
+    max-width: 300px;
+    
+    pointer-events: none; /* Tooltip doesn't interfere with mouse */
+    transition: opacity 0.2s ease-in-out;
+}
+
+/* Show the tooltip on row hover */
+.hoverable-row:hover .row-info {
+    visibility: visible;
+    opacity: 1;
+}
