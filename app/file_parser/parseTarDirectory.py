@@ -32,12 +32,13 @@ def openTarDirectory(filePath, destination):
 #     FileNotFoundError: If no log file is found.
 def findLogFile(directory):
     targetDir = ""
-    for item in os.scandir(directory):
-        print("Scanning: ", item.name)
-        if item.is_dir():
-            if AIME_STRING in item.name:
-                targetDir = item.name
-                break
+    with os.scandir(directory) as entries:
+        for item in entries:
+            print("Scanning: ", item.name)
+            if item.is_dir():
+                if AIME_STRING in item.name:
+                    targetDir = item.name
+                    break
     print(os.path.join(directory,targetDir,'log',f"debug_{targetDir}.log"))
     return os.path.join(directory,targetDir,'log',f"debug_{targetDir}.log")
     

@@ -1,6 +1,7 @@
 import os
 import re 
 import datetime
+import bisect
 
 ROLE_CHANGE_STRING = "SNR role change "
 RU_ID_STRING = "RU_ID"
@@ -85,14 +86,12 @@ def parseLineData(line, timestamp, dbName, dbId):
 
     return data
 
-def fetchTermSlot(eventsLog, timestamp):
+def fetchTermSlot(eventsLog, timestamp, eventsLogTimestamps):
     timestampTime = datetime.datetime.fromisoformat(timestamp).timestamp()
-    for i in reversed(range(len(eventsLog))):
-        slotInfo = eventsLog[i]
-        slotTime = datetime.datetime.fromisoformat(slotInfo['timestamp']).timestamp()
-        if timestampTime >= slotTime:
-            return i
-    return 0
+    ip = bisect.bisect_right(eventsLogTimestamps, timestampTime)
+    if ip == 0:
+        return 0
+    return ip - 1
        
     
 # Only leadership changes for now
@@ -257,11 +256,19 @@ def parseHistory(allRUIDs, rmdbs, logFiles, dbIds):
     incidents = list()
     dbLogsCache = dict()
     shardGroups = dict()
+    logFilePaths = {logFile['dbName']: logFile['logFile'] for logFile in logFiles}
+    print("--- Starting parseHistory ---")
+    print(f"allRUIDs: {allRUIDs}")
+    print(f"rmdbs: {rmdbs}")
+    print(f"logFiles: {logFiles}")
+    print(f"dbIds: {dbIds}")
 
     for logFile in logFiles:
+        print(f"Processing log file: {logFile['logFile']} for db: {logFile['dbName']}")
         with open(logFile['logFile'], 'r') as fp:
             dbLogsCache[logFile['dbName']] = fp.readlines()
             parsed_log = parseLogFile(dbLogsCache[logFile['dbName']], logFile['dbName'], dbIds[logFile['dbName']])
+            print(f"Parsed leadership changes for {logFile['dbName']}: {parsed_log}")
             for ruid, events in parsed_log.items():
                 if ruid in history:
                     for rmdb in rmdbs:
@@ -271,7 +278,12 @@ def parseHistory(allRUIDs, rmdbs, logFiles, dbIds):
                                 shardGroups[rmdb['shardGroup']] = list()
                             shardGroups[rmdb['shardGroup']].append(rmdb['dbName'])
 
+    for ruid in history:
+        for shard_group in history[ruid]:
+            history[ruid][shard_group].sort(key=lambda result: datetime.datetime.fromisoformat(result['timestamp'].strip()).timestamp(), reverse=False)
+
     for dbName, logFileContents in dbLogsCache.items():
+        print(f"Processing other events for DB: {dbName}")
         current_shard_group = None
         for rmdb in rmdbs:
             if rmdb['dbName'] == dbName:
@@ -281,20 +293,23 @@ def parseHistory(allRUIDs, rmdbs, logFiles, dbIds):
         if not current_shard_group:
             continue
 
-        for logFile in logFiles:
-            if logFile['dbName'] == dbName:
-                logFilePath = logFile['logFile']
+        logFilePath = logFilePaths.get(dbName)
+        if not logFilePath:
+            continue
 
         otherEvents = parseAllOtherEvents(logFileContents, allRUIDs, dbName, dbIds[dbName], logFilePath, incidents)
+        print(f"Parsed other events for {dbName}: {otherEvents}")
 
         for ruid in allRUIDs:
             ruidEvents = otherEvents[ruid]
             ruidShardGroupHistory = history[ruid][current_shard_group]
-            ruidShardGroupHistory.sort(key=lambda result:  datetime.datetime.fromisoformat(result['timestamp'].strip()).timestamp(), reverse=False)
+            
+            leader_event_timestamps = [datetime.datetime.fromisoformat(e['timestamp']).timestamp() for e in ruidShardGroupHistory]
+
             for event in ruidEvents:
                 if not ruidShardGroupHistory:
                     continue
-                targetSlot = fetchTermSlot(ruidShardGroupHistory, event['timestamp'])
+                targetSlot = fetchTermSlot(ruidShardGroupHistory, event['timestamp'], leader_event_timestamps)
                 ruidShardGroupHistory[targetSlot]['history'].append(event)
     
     for ruid in history:
@@ -303,4 +318,5 @@ def parseHistory(allRUIDs, rmdbs, logFiles, dbIds):
                 if 'history' not in event:
                     event['history'] = []
 
+    print("--- Finished parseHistory ---")
     return history, incidents
