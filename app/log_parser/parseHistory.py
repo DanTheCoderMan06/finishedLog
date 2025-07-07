@@ -244,6 +244,7 @@ def parseAllOtherEvents(logFileContent, ruidList, dbName, dbId, logFilePath, inc
         result[fetchRUIDFromLine(line)].append(lineInfo)
 
     incidentPath = os.path.join(findParentWithSubdir('trace', logFilePath), 'incident')
+    print(f"Finding incidents for {dbName}")
     for item in getAllIncidents(incidentPath):
         incidents.append(item)
 
