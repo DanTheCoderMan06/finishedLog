@@ -69,7 +69,7 @@ def parseLog(logDirectory, directoryName):
     print("SHARD GROUPS: ", shardGroups)
     print("RMDBS", rmdbs)
 
-    extractionDirectory = os.path.join(directoryName, file_parser.findLogFolder(directoryName))
+    extractionDirectory = directoryName
 
     for rmdb in rmdbs:
         rmdbName = rmdb['dbName']

@@ -51,7 +51,7 @@ def findLogFolder(directory):
     with os.scandir(directory) as entries:
         for entry in entries:
             if entry.is_dir():
-                if os.path.exists(os.path.join(entry.path, 'diag')):
+                if entry.name == 'diag':
                     return entry.name
     raise FileNotFoundError
 

@@ -176,10 +176,13 @@ def createLogFolder(results, results_dir):
                     history_item_row.append(db_id_cell)
 
                     event_cell = soup.new_tag('td')
+                    targetReason = "N/A"
+                    if 'reason' in history_item:
+                        targetReason = history_item['reason']
                     if history_item['type'] == 'error':
                         event_cell.string = "Error: ({})".format(history_item['code'])
                     else:
-                        event_cell.string = "{} / {}".format(history_item['type'], history_item['reason'])
+                        event_cell.string = "{} / {}".format(history_item['type'], targetReason)
                     history_item_row.append(event_cell)
 
                     history_table_body.append(history_item_row)
