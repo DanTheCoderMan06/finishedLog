@@ -40,7 +40,7 @@ def findLogFile(directory):
                 return full_path
     raise FileNotFoundError
 
-# Finds the log folder in a directory.
+# Finds the log/diag folder in a directory.
 # Args:
 #     directory (str): The directory to search.
 # Returns:
@@ -54,3 +54,5 @@ def findLogFolder(directory):
                 if os.path.exists(os.path.join(entry.path, 'diag')):
                     return entry.name
     raise FileNotFoundError
+
+    

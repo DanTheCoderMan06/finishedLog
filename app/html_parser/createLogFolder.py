@@ -6,9 +6,9 @@ import uuid
 # Generates an HTML log folder from a dictionary of results.
 # Args:
 #     results (dict): A dictionary containing the parsed log data.
-def createLogFolder(results):
-    directoryName = results['directoryName']
-    logDirectory = os.path.join(os.path.dirname(__file__), '..', '..', 'results', directoryName)
+def createLogFolder(results, results_dir):
+    directoryName = results['logDirectory']
+    logDirectory = results_dir
     os.makedirs(logDirectory, exist_ok=True)
 
     script_dir = os.path.dirname(os.path.abspath(__file__))

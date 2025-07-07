@@ -3,12 +3,13 @@ import sys
 import log_parser
 import html_parser
 import file_parser
+import datetime
 
 # Parses the log files in a given directory and generates an HTML report.
 # Args:
-#     directoryName (str): The name of the directory containing the log files.
-#     rmdbsDirectory (str): The directory containing the RMDBS.
-def parseLog(directoryName, rmdbsDirectory):
+#     rmdbsDirectory (str): The name of the directory containing the log files.
+#     directoryName (str): The directory to port report to.
+def parseLog(logDirectory, directoryName):
     fileName = ""
     logContents = {}
     rmdbs = []
@@ -68,30 +69,12 @@ def parseLog(directoryName, rmdbsDirectory):
     print("SHARD GROUPS: ", shardGroups)
     print("RMDBS", rmdbs)
 
-    tarFileName = ""
-    try:
-        with os.scandir(directoryName) as entries:
-            for entry in entries:
-                if entry.is_file():
-                    readFileName, fileExtension = os.path.splitext(entry.name)
-                    if fileExtension == ".gz":
-                        tarFileName = entry.name
-    except FileNotFoundError:
-        print("Error: The directory '{}' does not exist.".format(directoryName))
-        return
-
-    if tarFileName == "":
-        print("Error: No tar.gz file found!")
-
-    if rmdbsDirectory == "":
-        extractionDirectory = os.path.join("./app/results", directoryName)
-        file_parser.openTarDirectory(os.path.join(directoryName, tarFileName), extractionDirectory)
-    else:
-        extractionDirectory = rmdbsDirectory
+    extractionDirectory = os.path.join(directoryName, file_parser.findLogFolder(directoryName))
 
     for rmdb in rmdbs:
         rmdbName = rmdb['dbName']
-        targetLog = os.path.join(extractionDirectory, rmdbName)
+        targetLog = os.path.join(extractionDirectory, 'diag', 'rdbms', rmdbName)
+        print(targetLog)
         try:
             logFiles.append({'dbName': rmdbName, 'logFile': file_parser.findLogFile(targetLog)})
         except Exception as e:
@@ -118,23 +101,21 @@ def parseLog(directoryName, rmdbsDirectory):
 
     logContents['rmdbs'] = rmdbs
     logContents['shardGroups'] = shardGroups
-    logContents['directoryName'] = directoryName
     logContents['history'], logContents['incidents'] = log_parser.parseHistory(allRUIDs, rmdbs, logFiles, dbIds)
     logContents['allRUIDS'] = allRUIDs
+    logContents['logDirectory'] = directoryName
 
-    html_parser.createLogFolder(logContents)
+    html_parser.createLogFolder(logContents, os.path.join(logDirectory, os.path.basename(directoryName)))
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python main.py <directory_name> <rmdb_directory(If not found will try to auto detect, and if not found will try to look for a tar directory.)>")
+        print("Usage: python main.py <report_directory> <target_directory(Optional)>")
     else:
         directoryName = sys.argv[1]
         rmdbsDirectory = None
         if len(sys.argv) > 2:
             rmdbsDirectory = sys.argv[2]
-        if not rmdbsDirectory:
-            rmdbsDirectory = os.path.join(directoryName, file_parser.findLogFolder(directoryName), "diag", "rdbms")
-            if not os.path.exists(rmdbsDirectory):
-                rmdbsDirectory = ""
-        parseLog(directoryName,rmdbsDirectory)
+        else:
+            rmdbsDirectory = '.'
+        parseLog(directoryName, rmdbsDirectory)
