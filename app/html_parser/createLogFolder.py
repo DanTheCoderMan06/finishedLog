@@ -27,7 +27,7 @@ def createLogFolder(results, results_dir):
     soup = bs4.BeautifulSoup(shardListHTML, 'html.parser')
 
     logTitle = soup.find("h1", class_="main-title")
-    logTitle.string = "{} log contents".format(directoryName)
+    logTitle.string = "{} log contents".format(os.path.basename(directoryName))
 
     tableBody = soup.find('tbody')
     tableBody.clear()
