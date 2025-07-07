@@ -99,11 +99,15 @@ def parseLog(logDirectory, directoryName):
         for ruid in ruids:
             allRUIDs.add(ruid)
 
+    print("Parsing History")
+
     logContents['rmdbs'] = rmdbs
     logContents['shardGroups'] = shardGroups
     logContents['history'], logContents['incidents'] = log_parser.parseHistory(allRUIDs, rmdbs, logFiles, dbIds)
     logContents['allRUIDS'] = allRUIDs
     logContents['logDirectory'] = directoryName
+
+    print("Creating Log Folder")
 
     html_parser.createLogFolder(logContents, os.path.join(logDirectory, os.path.basename(directoryName)))
 
