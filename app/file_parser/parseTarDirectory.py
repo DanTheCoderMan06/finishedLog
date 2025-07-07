@@ -2,7 +2,7 @@ import tarfile
 import os
 
 MIN_LINES_FOR_LOG = 30
-
+DEBUG_STRING = "debug_"
 # Opens and extracts a tar.gz file to a specified destination.
 # Args:
 #     filePath (str): The path to the tar.gz file.
@@ -34,10 +34,8 @@ def findLogFile(directory):
         for filename in filenames:
             if filename.endswith('.log'):
                 full_path = os.path.join(dirpath, filename)
-                with open(full_path, 'r') as fp:
-                    if len(fp.readlines()) < MIN_LINES_FOR_LOG:
-                        continue
-                return full_path
+                if DEBUG_STRING in filename:
+                    return full_path
     raise FileNotFoundError
 
 # Finds the log/diag folder in a directory.
