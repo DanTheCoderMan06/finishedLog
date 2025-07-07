@@ -3,6 +3,7 @@ import os
 
 MIN_LINES_FOR_LOG = 30
 DEBUG_STRING = "debug_"
+AIME_STRING = "aime"
 # Opens and extracts a tar.gz file to a specified destination.
 # Args:
 #     filePath (str): The path to the tar.gz file.
@@ -30,13 +31,16 @@ def openTarDirectory(filePath, destination):
 # Raises:
 #     FileNotFoundError: If no log file is found.
 def findLogFile(directory):
-    for dirpath, dirnames, filenames in os.walk(directory):
-        for filename in filenames:
-            if filename.endswith('.log'):
-                full_path = os.path.join(dirpath, filename)
-                if DEBUG_STRING in filename:
-                    return full_path
-    raise FileNotFoundError
+    targetDir = ""
+    for item in os.scandir(directory):
+        print("Scanning: ", item.name)
+        if item.is_dir():
+            if AIME_STRING in item.name:
+                targetDir = item.name
+                break
+    print(os.path.join(directory,targetDir,'log',f"debug_{targetDir}.log"))
+    return os.path.join(directory,targetDir,'log',f"debug_{targetDir}.log")
+    
 
 # Finds the log/diag folder in a directory.
 # Args:
