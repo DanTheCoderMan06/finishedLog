@@ -133,17 +133,16 @@ def parseCandidateChange(lines, index):
         if REASON_STRING in word:
             result['reason'] = line[line.find(word):-1]
 
-    offset = 1
+    offset = 0
     while HEARTBEAT_PARAMETERS_STRING not in lines[index + offset]:
         offset += 1
-        if offset > 3:
+        if offset > 7:
             return result
         
-    offset = 1
     while not isTimeStamp(lines[index + offset]):
         result['parameters'].append(lines[index + offset])
-        index += 1  
-        if offset > 3:
+        offset += 1  
+        if offset > 7:
             return result
 
     return result

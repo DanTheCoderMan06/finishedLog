@@ -2,6 +2,7 @@ import bs4
 import os
 import datetime
 import uuid
+import pdb
 
 # Generates an HTML log folder from a dictionary of results.
 # Args:
@@ -163,6 +164,7 @@ def createLogFolder(results, results_dir):
 
                     info_div = soup.new_tag('div', attrs={'class': 'row-info'})
                     parameter_info = "".join(history_item['parameters'])
+                    print(history_item)
                     info_div.string = history_item['original'] + parameter_info
                     ts_cell.append(info_div)
                     history_item_row.append(ts_cell)
