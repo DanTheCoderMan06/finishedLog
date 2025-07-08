@@ -174,26 +174,41 @@ def findParentWithSubdir(target_subdir, start_path):
         current_path = parent_path
 
 def findOspFile(trace_dir, targetOsp, ruid):
-    print(f"[{time.time()}] findOspFile: searching for ospid '{targetOsp}' and ruid '{ruid}' in '{trace_dir}'")
+    start_time = time.time()
+    print(f"[{start_time}] findOspFile: searching for ospid '{targetOsp}' and ruid '{ruid}' in '{trace_dir}'")
     osp_search_string = f"_{targetOsp}_"
+    result = None
     with os.scandir(trace_dir) as it:
         for entry in it:
-            if entry.is_file() and entry.name.endswith('.trc') and osp_search_string in entry.name:
-                filename, _ = os.path.splitext(entry.name)
-                fileWords = filename.split('_')
-                try:
-                    osp_index = fileWords.index(str(targetOsp))
-                    if len(fileWords) > osp_index + 2:
-                        fileRUID_str = fileWords[osp_index + 2]
-                        fileRUID = int("".join(filter(str.isdigit, fileRUID_str)))
-                        if fileRUID == ruid:
-                            fullPath = os.path.join(trace_dir, entry.name)
-                            print(f"[{time.time()}] findOspFile: found '{fullPath}'")
-                            return f"file:///{fullPath}"
-                except (ValueError, IndexError):
-                    continue
-    print(f"[{time.time()}] findOspFile: not found for ospid '{targetOsp}' and ruid '{ruid}' in '{trace_dir}'")
-    return None
+            if not entry.is_file():
+                continue
+            if osp_search_string not in entry.name:
+                continue
+            if not entry.name.endswith('.trc'):
+                continue
+            filename, _ = os.path.splitext(entry.name)
+            fileWords = filename.split('_')
+            try:
+                osp_index = fileWords.index(str(targetOsp))
+                if len(fileWords) > osp_index + 2:
+                    fileRUID_str = fileWords[osp_index + 2]
+                    fileRUID = int("".join(filter(str.isdigit, fileRUID_str)))
+                    if fileRUID == ruid:
+                        fullPath = os.path.join(trace_dir, entry.name)
+                        print(f"[{time.time()}] findOspFile: found '{fullPath}'")
+                        result = f"file:///{fullPath}"
+                        break
+            except (ValueError, IndexError):
+                continue
+    
+    end_time = time.time()
+    execution_time = end_time - start_time
+    if result:
+        print(f"[{end_time}] findOspFile: found. Execution time: {execution_time:.4f} seconds")
+    else:
+        print(f"[{end_time}] findOspFile: not found. Execution time: {execution_time:.4f} seconds")
+        
+    return result
 
 
 # Finds the first .trc file in a directory.
