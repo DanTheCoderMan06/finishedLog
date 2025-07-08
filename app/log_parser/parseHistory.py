@@ -175,19 +175,25 @@ def findParentWithSubdir(target_subdir, start_path):
 
 def findOspFile(trace_dir, targetOsp, ruid):
     print(f"[{time.time()}] findOspFile: searching for ospid '{targetOsp}' and ruid '{ruid}' in '{trace_dir}'")
-    for item in os.listdir(trace_dir):
-        fullPath = os.path.join(trace_dir, item)
-        if os.path.isfile(fullPath):
-            filename, extension = os.path.splitext(item)
-            fileWords = filename.split('_')
-            if extension == '.trc' and str(targetOsp) in fileWords:
-                if len(fileWords) - fileWords.index(str(targetOsp)) >= 2:
-                    fileRUID = fileWords[fileWords.index(str(targetOsp)) + 2]
-                    fileRUID = int("".join([char for char in fileRUID if char.isdigit()]))
-                    if fileRUID == ruid:
-                        print(f"[{time.time()}] findOspFile: found '{fullPath}'")
-                        return "file:///{}".format(fullPath)
+    osp_search_string = f"_{targetOsp}_"
+    with os.scandir(trace_dir) as it:
+        for entry in it:
+            if entry.is_file() and entry.name.endswith('.trc') and osp_search_string in entry.name:
+                filename, _ = os.path.splitext(entry.name)
+                fileWords = filename.split('_')
+                try:
+                    osp_index = fileWords.index(str(targetOsp))
+                    if len(fileWords) > osp_index + 2:
+                        fileRUID_str = fileWords[osp_index + 2]
+                        fileRUID = int("".join(filter(str.isdigit, fileRUID_str)))
+                        if fileRUID == ruid:
+                            fullPath = os.path.join(trace_dir, entry.name)
+                            print(f"[{time.time()}] findOspFile: found '{fullPath}'")
+                            return f"file:///{fullPath}"
+                except (ValueError, IndexError):
+                    continue
     print(f"[{time.time()}] findOspFile: not found for ospid '{targetOsp}' and ruid '{ruid}' in '{trace_dir}'")
+    return None
 
 
 # Finds the first .trc file in a directory.
