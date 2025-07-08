@@ -2,6 +2,7 @@ import os
 import re 
 import datetime
 import bisect
+import time
 
 ROLE_CHANGE_STRING = "SNR role change "
 RU_ID_STRING = "RU_ID"
@@ -160,16 +161,20 @@ def parseErrorLog(lines, index):
     return result
 
 def findParentWithSubdir(target_subdir, start_path):
+    print(f"[{time.time()}] findParentWithSubdir: searching for '{target_subdir}' starting from '{start_path}'")
     current_path = os.path.abspath(start_path)
     while True:
         if os.path.isdir(os.path.join(current_path, target_subdir)):
+            print(f"[{time.time()}] findParentWithSubdir: found at '{current_path}'")
             return current_path
         parent_path = os.path.dirname(current_path)
         if parent_path == current_path:
+            print(f"[{time.time()}] findParentWithSubdir: not found for '{start_path}'")
             return None
         current_path = parent_path
 
 def findOspFile(trace_dir, targetOsp, ruid):
+    print(f"[{time.time()}] findOspFile: searching for ospid '{targetOsp}' and ruid '{ruid}' in '{trace_dir}'")
     for item in os.listdir(trace_dir):
         fullPath = os.path.join(trace_dir, item)
         if os.path.isfile(fullPath):
@@ -180,7 +185,9 @@ def findOspFile(trace_dir, targetOsp, ruid):
                     fileRUID = fileWords[fileWords.index(str(targetOsp)) + 2]
                     fileRUID = int("".join([char for char in fileRUID if char.isdigit()]))
                     if fileRUID == ruid:
+                        print(f"[{time.time()}] findOspFile: found '{fullPath}'")
                         return "file:///{}".format(fullPath)
+    print(f"[{time.time()}] findOspFile: not found for ospid '{targetOsp}' and ruid '{ruid}' in '{trace_dir}'")
 
 
 # Finds the first .trc file in a directory.
@@ -189,13 +196,16 @@ def findOspFile(trace_dir, targetOsp, ruid):
 # Returns:
 #     str: The path to the .trc file, or None if not found.
 def findIncidentFile(incident_dir):
+    print(f"[{time.time()}] findIncidentFile: searching in '{incident_dir}'")
     for item in os.listdir(incident_dir):
         full_path = os.path.join(incident_dir, item)
         if os.path.isdir(full_path):
             for sub_item in os.listdir(full_path):
                 if sub_item.endswith('.trc'):
                     newPath = os.path.join(full_path, sub_item)
+                    print(f"[{time.time()}] findIncidentFile: found '{newPath}'")
                     return "file:///{}".format(newPath)
+    print(f"[{time.time()}] findIncidentFile: no .trc file found in '{incident_dir}'")
 
 # Gets all incidents from a given path.
 # Args:
@@ -203,14 +213,16 @@ def findIncidentFile(incident_dir):
 # Returns:
 #     list: A list of dictionaries, where each dictionary represents an incident.
 def getAllIncidents(incidentPath):
+    print(f"[{time.time()}] getAllIncidents: getting incidents from '{incidentPath}'")
     results = []
     for item in os.listdir(incidentPath):
         full_path = os.path.join(incidentPath, item)
         if os.path.isdir(full_path):
             newincident = {}
             newincident['folderName'] = item
-            newincident['fileName'] = findIncidentFile(incidentPath)
+            newincident['fileName'] = findIncidentFile(full_path)
             results.append(newincident)
+    print(f"[{time.time()}] getAllIncidents: found {len(results)} incidents in '{incidentPath}'")
     return results
 
 # Parses all other events from a log file.
@@ -234,7 +246,11 @@ def parseAllOtherEvents(logFileContent, ruidList, dbName, dbId, logFilePath, inc
             if lineInfo['code'] == 0:
                 continue
             if 'ospid' in lineInfo:
-                lineInfo['ospFile'] = findOspFile(os.path.join(findParentWithSubdir('trace', logFilePath), 'trace'), lineInfo['ospid'], fetchRUIDFromLine(line))
+                trace_parent_dir = findParentWithSubdir('trace', logFilePath)
+                if trace_parent_dir:
+                    lineInfo['ospFile'] = findOspFile(os.path.join(trace_parent_dir, 'trace'), lineInfo['ospid'], fetchRUIDFromLine(line))
+                else:
+                    print(f"[{time.time()}] parseAllOtherEvents: 'trace' parent directory not found for '{logFilePath}' when searching for ospFile")
         else:
             continue
         lineInfo['original'] = line
@@ -243,10 +259,18 @@ def parseAllOtherEvents(logFileContent, ruidList, dbName, dbId, logFilePath, inc
         lineInfo['dbId'] = dbId
         result[fetchRUIDFromLine(line)].append(lineInfo)
 
-    incidentPath = os.path.join(findParentWithSubdir('trace', logFilePath), 'incident')
-    print(f"Finding incidents for {dbName}")
-    for item in getAllIncidents(incidentPath):
-        incidents.append(item)
+    print(f"[{time.time()}] parseAllOtherEvents: searching for incidents for log file '{logFilePath}'")
+    incident_parent_dir = findParentWithSubdir('trace', logFilePath)
+    if incident_parent_dir:
+        incidentPath = os.path.join(incident_parent_dir, 'incident')
+        print(f"[{time.time()}] parseAllOtherEvents: incident path is '{incidentPath}'")
+        if os.path.isdir(incidentPath):
+            for item in getAllIncidents(incidentPath):
+                incidents.append(item)
+        else:
+            print(f"[{time.time()}] parseAllOtherEvents: incident directory not found at '{incidentPath}'")
+    else:
+        print(f"[{time.time()}] parseAllOtherEvents: 'trace' parent directory not found for '{logFilePath}'")
 
     return result
             
@@ -258,18 +282,18 @@ def parseHistory(allRUIDs, rmdbs, logFiles, dbIds):
     dbLogsCache = dict()
     shardGroups = dict()
     logFilePaths = {logFile['dbName']: logFile['logFile'] for logFile in logFiles}
-    print("--- Starting parseHistory ---")
-    print(f"allRUIDs: {allRUIDs}")
-    print(f"rmdbs: {rmdbs}")
-    print(f"logFiles: {logFiles}")
-    print(f"dbIds: {dbIds}")
+    print(f"[{time.time()}] --- Starting parseHistory ---")
+    print(f"[{time.time()}] allRUIDs: {allRUIDs}")
+    print(f"[{time.time()}] rmdbs: {rmdbs}")
+    print(f"[{time.time()}] logFiles: {logFiles}")
+    print(f"[{time.time()}] dbIds: {dbIds}")
 
     for logFile in logFiles:
-        print(f"Processing log file: {logFile['logFile']} for db: {logFile['dbName']}")
+        print(f"[{time.time()}] Processing log file: {logFile['logFile']} for db: {logFile['dbName']}")
         with open(logFile['logFile'], 'r') as fp:
             dbLogsCache[logFile['dbName']] = fp.readlines()
             parsed_log = parseLogFile(dbLogsCache[logFile['dbName']], logFile['dbName'], dbIds[logFile['dbName']])
-            print(f"Parsed leadership changes for {logFile['dbName']}: {parsed_log}")
+            print(f"[{time.time()}] Parsed leadership changes for {logFile['dbName']}: {parsed_log}")
             for ruid, events in parsed_log.items():
                 if ruid in history:
                     for rmdb in rmdbs:
@@ -284,7 +308,7 @@ def parseHistory(allRUIDs, rmdbs, logFiles, dbIds):
             history[ruid][shard_group].sort(key=lambda result: datetime.datetime.fromisoformat(result['timestamp'].strip()).timestamp(), reverse=False)
 
     for dbName, logFileContents in dbLogsCache.items():
-        print(f"Processing other events for DB: {dbName}")
+        print(f"[{time.time()}] Processing other events for DB: {dbName}")
         current_shard_group = None
         for rmdb in rmdbs:
             if rmdb['dbName'] == dbName:
@@ -299,7 +323,7 @@ def parseHistory(allRUIDs, rmdbs, logFiles, dbIds):
             continue
 
         otherEvents = parseAllOtherEvents(logFileContents, allRUIDs, dbName, dbIds[dbName], logFilePath, incidents)
-        print(f"Parsed other events for {dbName}: {otherEvents}")
+        print(f"[{time.time()}] Parsed other events for {dbName}: {otherEvents}")
 
         for ruid in allRUIDs:
             ruidEvents = otherEvents[ruid]
@@ -319,5 +343,5 @@ def parseHistory(allRUIDs, rmdbs, logFiles, dbIds):
                 if 'history' not in event:
                     event['history'] = []
 
-    print("--- Finished parseHistory ---")
+    print(f"[{time.time()}] --- Finished parseHistory ---")
     return history, incidents
