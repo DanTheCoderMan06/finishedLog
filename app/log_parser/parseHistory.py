@@ -3,6 +3,7 @@ import re
 import datetime
 import bisect
 import time
+import pdb
 
 ROLE_CHANGE_STRING = "SNR role change "
 RU_ID_STRING = "RU_ID"
@@ -133,15 +134,18 @@ def parseCandidateChange(lines, index):
         if REASON_STRING in word:
             result['reason'] = line[line.find(word):-1]
 
-    og = index
-    while HEARTBEAT_PARAMETERS_STRING not in lines[index]:
-        index += 1
-        if index - og > 3:
+    offset = 1
+    while HEARTBEAT_PARAMETERS_STRING not in lines[index + offset]:
+        offset += 1
+        if offset > 3:
             return result
-
-    while not isTimeStamp(lines[index]):
-        result['parameters'].append(lines[index])
-        index += 1
+        
+    offset = 1
+    while not isTimeStamp(lines[index + offset]):
+        result['parameters'].append(lines[index + offset])
+        index += 1  
+        if offset > 3:
+            return result
 
     return result
 
@@ -204,14 +208,12 @@ def findOspFile(trace_dir, targetOsp, ruid, dbName, dbId, processName):
 #     str: The path to the .trc file, or None if not found.
 def findIncidentFile(incident_dir):
     print(f"[{time.time()}] findIncidentFile: searching in '{incident_dir}'")
-    for item in os.listdir(incident_dir):
-        full_path = os.path.join(incident_dir, item)
-        if os.path.isdir(full_path):
-            for sub_item in os.listdir(full_path):
-                if sub_item.endswith('.trc'):
-                    newPath = os.path.join(full_path, sub_item)
-                    print(f"[{time.time()}] findIncidentFile: found '{newPath}'")
-                    return "file:///{}".format(newPath)
+    with os.scandir(incident_dir) as items:
+        for item in items:
+            if item.name.endswith('.trc'):
+                newPath = os.path.join(incident_dir,item.name)
+                print(f"[{time.time()}] findIncidentFile: found '{newPath}'")
+                return "file:///{}".format(newPath)
     print(f"[{time.time()}] findIncidentFile: no .trc file found in '{incident_dir}'")
 
 # Gets all incidents from a given path.
@@ -222,14 +224,14 @@ def findIncidentFile(incident_dir):
 def getAllIncidents(incidentPath):
     print(f"[{time.time()}] getAllIncidents: getting incidents from '{incidentPath}'")
     results = []
-    for item in os.listdir(incidentPath):
-        full_path = os.path.join(incidentPath, item)
-        if os.path.isdir(full_path):
-            newincident = {}
-            newincident['folderName'] = item
-            newincident['fileName'] = findIncidentFile(full_path)
-            results.append(newincident)
-    print(f"[{time.time()}] getAllIncidents: found {len(results)} incidents in '{incidentPath}'")
+    with os.scandir(incidentPath) as items:
+        for item in items:
+            full_path = os.path.join(incidentPath, item.name)
+            if os.path.isdir(full_path):
+                newincident = {}
+                newincident['folderName'] = item.name
+                newincident['fileName'] = findIncidentFile(full_path)
+                results.append(newincident)
     return results
 
 def getLogName(rmdbList, target):
@@ -279,12 +281,13 @@ def parseAllOtherEvents(logFileContent, ruidList, dbName, dbId, logFilePath, inc
         print(f"[{time.time()}] parseAllOtherEvents: incident path is '{incidentPath}'")
         if os.path.isdir(incidentPath):
             for item in getAllIncidents(incidentPath):
+                print(item)
                 incidents.append(item)
         else:
             print(f"[{time.time()}] parseAllOtherEvents: incident directory not found at '{incidentPath}'")
     else:
         print(f"[{time.time()}] parseAllOtherEvents: 'trace' parent directory not found for '{logFilePath}'")
-
+    breakpoint()
     return result
             
 

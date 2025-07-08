@@ -5,6 +5,13 @@ import html_parser
 import file_parser
 import datetime
 
+# ./scratch/reports C:\\Users\\danii\\OneDrive\\Documents\\mytar2\\lrgdbcongsmshsnr17
+
+
+
+
+
+
 # Parses the log files in a given directory and generates an HTML report.
 # Args:
 #     rmdbsDirectory (str): The name of the directory containing the log files.
