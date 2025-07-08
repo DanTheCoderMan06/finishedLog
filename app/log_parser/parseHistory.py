@@ -17,8 +17,8 @@ ERROR_STRING = "error="
 REASON_STRING = "Reason"
 HEARTBEAT_PARAMETERS_STRING = "Heatbeat parameters:"
 OSP_STRING = "ospid="
-
-
+POSSIBLE_TRACE_NAMES = ["gwr"]
+PROCESS_STRING = "process_name="
 # Checks if a string is a valid ISO 8601 timestamp.
 # Args:
 #     timestamp_str (str): The string to check.
@@ -157,7 +157,9 @@ def parseErrorLog(lines, index):
             result['code'] = int("".join([char for char in word if char.isdigit()]))
         elif OSP_STRING in word:
             result['ospid'] = int("".join([char for char in word if char.isdigit()]))
-            
+        elif PROCESS_STRING in word:
+            result['process_name'] = "".join([char for char in word.split(PROCESS_STRING)[-1] if char.isalpha()]) 
+
     return result
 
 def findParentWithSubdir(target_subdir, start_path):
@@ -173,41 +175,22 @@ def findParentWithSubdir(target_subdir, start_path):
             return None
         current_path = parent_path
 
-def findOspFile(trace_dir, targetOsp, ruid):
+find_osp_file_cache = {}
+
+def findOspFile(trace_dir, targetOsp, ruid, dbName, dbId, processName):
     start_time = time.time()
-    print(f"[{start_time}] findOspFile: searching for ospid '{targetOsp}' and ruid '{ruid}' in '{trace_dir}'")
-    osp_search_string = f"_{targetOsp}_"
-    result = None
-    with os.scandir(trace_dir) as it:
-        for entry in it:
-            if not entry.is_file():
-                continue
-            if osp_search_string not in entry.name:
-                continue
-            if not entry.name.endswith('.trc'):
-                continue
-            filename, _ = os.path.splitext(entry.name)
-            fileWords = filename.split('_')
-            try:
-                osp_index = fileWords.index(str(targetOsp))
-                if len(fileWords) > osp_index + 2:
-                    fileRUID_str = fileWords[osp_index + 2]
-                    fileRUID = int("".join(filter(str.isdigit, fileRUID_str)))
-                    if fileRUID == ruid:
-                        fullPath = os.path.join(trace_dir, entry.name)
-                        print(f"[{time.time()}] findOspFile: found '{fullPath}'")
-                        result = f"file:///{fullPath}"
-                        break
-            except (ValueError, IndexError):
-                continue
-    
+    result = ""
+    for possible in POSSIBLE_TRACE_NAMES:
+        targetFile = f"{dbName}_{processName}_{targetOsp}_{possible}_{ruid}_{dbId}.trc"
+        print("Trying ", targetFile)
+        if os.path.exists(targetFile):
+            result = targetFile
+            break
+
     end_time = time.time()
     execution_time = end_time - start_time
-    if result:
-        print(f"[{end_time}] findOspFile: found. Execution time: {execution_time:.4f} seconds")
-    else:
-        print(f"[{end_time}] findOspFile: not found. Execution time: {execution_time:.4f} seconds")
-        
+    print(f"[{end_time}] findOspFile: Finished scanning '{trace_dir}'. Took {execution_time:.4f}s. Found: {'Yes' if result != "" else 'No'}")
+    
     return result
 
 
@@ -246,6 +229,11 @@ def getAllIncidents(incidentPath):
     print(f"[{time.time()}] getAllIncidents: found {len(results)} incidents in '{incidentPath}'")
     return results
 
+def getLogName(rmdbList, target):
+    for rmdb in rmdbList:
+        if rmdb['dbName'] == target:
+            return rmdb['logFolderName']
+
 # Parses all other events from a log file.
 # Args:
 #     logFileContent (list): A list of strings representing the lines in a log file.
@@ -256,7 +244,8 @@ def getAllIncidents(incidentPath):
 #     incidents (list): A list to store any incidents found.
 # Returns:
 #     dict: A dictionary where the keys are RUIDs and the values are lists of events.
-def parseAllOtherEvents(logFileContent, ruidList, dbName, dbId, logFilePath, incidents):
+def parseAllOtherEvents(logFileContent, ruidList, dbName, dbId, logFilePath, incidents, rmdbs):
+    dbLogName = getLogName(rmdbs, dbName)
     result = {ruid: [] for ruid in ruidList}
     for i in range(len(logFileContent)):
         line = logFileContent[i]
@@ -269,7 +258,7 @@ def parseAllOtherEvents(logFileContent, ruidList, dbName, dbId, logFilePath, inc
             if 'ospid' in lineInfo:
                 trace_parent_dir = findParentWithSubdir('trace', logFilePath)
                 if trace_parent_dir:
-                    lineInfo['ospFile'] = findOspFile(os.path.join(trace_parent_dir, 'trace'), lineInfo['ospid'], fetchRUIDFromLine(line))
+                    lineInfo['ospFile'] = findOspFile(os.path.join(trace_parent_dir, 'trace'), lineInfo['ospid'], fetchRUIDFromLine(line), dbLogName, dbId,lineInfo['process_name'])
                 else:
                     print(f"[{time.time()}] parseAllOtherEvents: 'trace' parent directory not found for '{logFilePath}' when searching for ospFile")
         else:
@@ -343,7 +332,7 @@ def parseHistory(allRUIDs, rmdbs, logFiles, dbIds):
         if not logFilePath:
             continue
 
-        otherEvents = parseAllOtherEvents(logFileContents, allRUIDs, dbName, dbIds[dbName], logFilePath, incidents)
+        otherEvents = parseAllOtherEvents(logFileContents, allRUIDs, dbName, dbIds[dbName], logFilePath, incidents, rmdbs)
         print(f"[{time.time()}] Parsed other events for {dbName}: {otherEvents}")
 
         for ruid in allRUIDs:

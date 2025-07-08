@@ -49,6 +49,8 @@ def parseLog(logDirectory, directoryName):
     if not logFileLines:
         print("Error: No lines in the log file  file '{}'!".format(fileName))
         return
+    
+    extractionDirectory = directoryName
 
     for i in range(len(logFileLines)):
         if log_parser.ADDSHARD_PREFIX in logFileLines[i]:
@@ -63,18 +65,16 @@ def parseLog(logDirectory, directoryName):
 
             shardGroups.add(shardGroup)
             dbIds[rmdb] = dbCounter
-            rmdbs.append({'dbName': rmdb, 'dbID': dbCounter, 'shardGroup': shardGroup})
+            rmdbs.append({'dbName': rmdb, 'dbID': dbCounter, 'shardGroup': shardGroup, 'logFolderName' : file_parser.findMainDir(os.path.join(extractionDirectory, 'diag', 'rdbms', rmdb))})
             dbCounter += 10
 
     print("SHARD GROUPS: ", shardGroups)
     print("RMDBS", rmdbs)
 
-    extractionDirectory = directoryName
-
     for rmdb in rmdbs:
         rmdbName = rmdb['dbName']
         targetLog = os.path.join(extractionDirectory, 'diag', 'rdbms', rmdbName)
-        print(targetLog)
+        print(file_parser.findLogFile(targetLog))
         try:
             logFiles.append({'dbName': rmdbName, 'logFile': file_parser.findLogFile(targetLog)})
         except Exception as e:

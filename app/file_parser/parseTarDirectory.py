@@ -41,7 +41,14 @@ def findLogFile(directory):
                     break
     print(os.path.join(directory,targetDir,'log',f"debug_{targetDir}.log"))
     return os.path.join(directory,targetDir,'log',f"debug_{targetDir}.log")
-    
+
+def findMainDir(directory):
+    with os.scandir(directory) as entries:
+        for item in entries:
+            print("Scanning: ", item.name)
+            if item.is_dir():
+                if AIME_STRING in item.name:
+                    return item.name
 
 # Finds the log/diag folder in a directory.
 # Args:
