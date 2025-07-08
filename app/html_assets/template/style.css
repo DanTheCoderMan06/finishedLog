@@ -165,3 +165,6 @@ tbody tr:not(.status-lost-service):not(.status-recovered):not(.status-info):hove
     visibility: visible;
     opacity: 1;
 }
+
+a:visited { text-decoration: none; color:blue; }
+a:hover { text-decoration: none; color:blue; }

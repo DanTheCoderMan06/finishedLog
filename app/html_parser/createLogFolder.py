@@ -54,9 +54,11 @@ def createLogFolder(results, results_dir):
         incident_table = soup.new_tag('table')
         incident_thead = soup.new_tag('thead')
         incident_tr = soup.new_tag('tr')
-        incident_th = soup.new_tag('th')
-        incident_th.string = "Incident File"
-        incident_tr.append(incident_th)
+        headers = ["Incident File", "RUID", "DB ID", "DB Log Folder Name"]
+        for header_text in headers:
+            incident_th = soup.new_tag('th')
+            incident_th.string = header_text
+            incident_tr.append(incident_th)
         incident_thead.append(incident_tr)
         incident_table.append(incident_thead)
         
@@ -71,6 +73,19 @@ def createLogFolder(results, results_dir):
             link.string = name
             cell.append(link)
             new_row.append(cell)
+
+            ruid_cell = soup.new_tag('td')
+            ruid_cell.string = str(item.get('ruid', 'N/A'))
+            new_row.append(ruid_cell)
+
+            db_id_cell = soup.new_tag('td')
+            db_id_cell.string = str(item.get('dbId', 'N/A'))
+            new_row.append(db_id_cell)
+
+            db_log_folder_name_cell = soup.new_tag('td')
+            db_log_folder_name_cell.string = item.get('dbLogFolderName', 'N/A')
+            new_row.append(db_log_folder_name_cell)
+            
             incident_tbody.append(new_row)
         
         incident_table.append(incident_tbody)

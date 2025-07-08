@@ -19,6 +19,20 @@ HEARTBEAT_PARAMETERS_STRING = "Heatbeat parameters:"
 OSP_STRING = "ospid="
 PROCESS_STRING = "process_name="
 CONTINUE_FILE_STRING = "*** TRACE CONTINUES IN FILE "
+CONTINUED_FROM_FILE_DUMP_STRING = "Dump continued from file: "
+
+def rmdbExists(rmdbList, target):
+    for rmdb in rmdbList:
+        if rmdb['dbName'] == target:
+            return True
+    return False
+
+def logExists(rmdbList, target):
+    for rmdb in rmdbList:
+        if rmdb['logFolderName'] == target:
+            return True
+    return False
+
 # Checks if a string is a valid ISO 8601 timestamp.
 # Args:
 #     timestamp_str (str): The string to check.
@@ -211,15 +225,41 @@ def findIncidentFile(incident_dir):
             if item.name.endswith('.trc'):
                 newPath = os.path.join(incident_dir,item.name)
                 print(f"[{time.time()}] findIncidentFile: found '{newPath}'")
-                return "file:///{}".format(newPath)
+                return newPath
     print(f"[{time.time()}] findIncidentFile: no .trc file found in '{incident_dir}'")
+
+
+def fetchFileInfo(incidentObject, targetLog, rmdbs, ruids):
+    with open(targetLog, 'r') as fp:
+        for line in fp.readlines():
+            if CONTINUED_FROM_FILE_DUMP_STRING in line:
+                lineWords = line.split(' ')
+                for word in lineWords:
+                    if ".trc" in word:
+                        filePath = word.strip()
+                        incidentObject['mainFile'] = "file:///{}".format(filePath)
+                        baseName = os.path.basename(filePath)
+                        pathWords = baseName.split('_')
+                        for info in pathWords:
+                            if logExists(rmdbs, info):
+                                    incidentObject['dbLogFolderName'] = info
+                            try:
+                                onlyNumbers = "".join([char for char in info if char.isdigit()])
+                                if int(onlyNumbers) in ruids:
+                                    incidentObject['ruid'] = int(onlyNumbers)
+                                elif int(onlyNumbers) < 10000:
+                                    incidentObject['dbId'] = int(onlyNumbers)
+                            except:
+                                pass
+
+
 
 # Gets all incidents from a given path.
 # Args:
 #     incidentPath (str): The path to the incident directory.
 # Returns:
 #     list: A list of dictionaries, where each dictionary represents an incident.
-def getAllIncidents(incidentPath):
+def getAllIncidents(incidentPath, rmdbs, ruids):
     print(f"[{time.time()}] getAllIncidents: getting incidents from '{incidentPath}'")
     results = []
     with os.scandir(incidentPath) as items:
@@ -227,8 +267,10 @@ def getAllIncidents(incidentPath):
             full_path = os.path.join(incidentPath, item.name)
             if os.path.isdir(full_path):
                 newincident = {}
+                targetFile = findIncidentFile(full_path)
                 newincident['folderName'] = item.name
-                newincident['fileName'] = findIncidentFile(full_path)
+                newincident['fileName'] = "file:///{}".format(targetFile)
+                fetchFileInfo(newincident,targetFile, rmdbs, ruids)
                 results.append(newincident)
     return results
 
@@ -236,6 +278,7 @@ def getLogName(rmdbList, target):
     for rmdb in rmdbList:
         if rmdb['dbName'] == target:
             return rmdb['logFolderName']
+        
 
 # Parses all other events from a log file.
 # Args:
@@ -278,7 +321,7 @@ def parseAllOtherEvents(logFileContent, ruidList, dbName, dbId, logFilePath, inc
         incidentPath = os.path.join(incident_parent_dir, 'incident')
         print(f"[{time.time()}] parseAllOtherEvents: incident path is '{incidentPath}'")
         if os.path.isdir(incidentPath):
-            for item in getAllIncidents(incidentPath):
+            for item in getAllIncidents(incidentPath, rmdbs, ruidList):
                 print(item)
                 incidents.append(item)
         else:
