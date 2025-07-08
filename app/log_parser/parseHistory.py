@@ -3,7 +3,6 @@ import re
 import datetime
 import bisect
 import time
-import pdb
 
 ROLE_CHANGE_STRING = "SNR role change "
 RU_ID_STRING = "RU_ID"
@@ -287,7 +286,6 @@ def parseAllOtherEvents(logFileContent, ruidList, dbName, dbId, logFilePath, inc
             print(f"[{time.time()}] parseAllOtherEvents: incident directory not found at '{incidentPath}'")
     else:
         print(f"[{time.time()}] parseAllOtherEvents: 'trace' parent directory not found for '{logFilePath}'")
-    breakpoint()
     return result
             
 
@@ -314,7 +312,9 @@ def parseHistory(allRUIDs, rmdbs, logFiles, dbIds):
                 if ruid in history:
                     for rmdb in rmdbs:
                         if rmdb['dbName'] == logFile['dbName']:
-                            history[ruid][rmdb['shardGroup']].extend(events)
+                            for event in events:
+                                if event not in history[ruid][rmdb['shardGroup']]:
+                                    history[ruid][rmdb['shardGroup']].append(event)
                             if rmdb['shardGroup'] not in shardGroups:
                                 shardGroups[rmdb['shardGroup']] = list()
                             shardGroups[rmdb['shardGroup']].append(rmdb['dbName'])
