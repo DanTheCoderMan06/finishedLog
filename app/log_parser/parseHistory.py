@@ -322,7 +322,8 @@ def parseAllOtherEvents(logFileContent, ruidList, dbName, dbId, logFilePath, inc
         print(f"[{time.time()}] parseAllOtherEvents: incident path is '{incidentPath}'")
         if os.path.isdir(incidentPath):
             for item in getAllIncidents(incidentPath, rmdbs, ruidList):
-                print(item)
+                if 'mainFile' in item:
+                    item['mainFile'] = os.path.join(os.path.join(incident_parent_dir,'trace'), os.path.basename(item['mainFile']))
                 incidents.append(item)
         else:
             print(f"[{time.time()}] parseAllOtherEvents: incident directory not found at '{incidentPath}'")

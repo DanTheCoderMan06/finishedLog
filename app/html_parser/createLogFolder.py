@@ -69,7 +69,7 @@ def createLogFolder(results, results_dir):
         incident_table = soup.new_tag('table')
         incident_thead = soup.new_tag('thead')
         incident_tr = soup.new_tag('tr')
-        headers = ["Incident File", "RUID", "DB ID", "DB Log Folder Name"]
+        headers = ["Incident File", "Main File", "RUID", "DB ID", "DB Log Folder Name"]
         for header_text in headers:
             incident_th = soup.new_tag('th')
             incident_th.string = header_text
@@ -88,6 +88,15 @@ def createLogFolder(results, results_dir):
             link.string = name
             cell.append(link)
             new_row.append(cell)
+
+            main_file_cell = soup.new_tag('td')
+            if 'mainFile' in item and item['mainFile']:
+                main_file_link = soup.new_tag('a', attrs={'href': item['mainFile']})
+                main_file_link.string = os.path.basename(item['mainFile'])
+                main_file_cell.append(main_file_link)
+            else:
+                main_file_cell.string = "N/A"
+            new_row.append(main_file_cell)
 
             ruid_cell = soup.new_tag('td')
             ruid_cell.string = str(item.get('ruid', 'N/A'))
