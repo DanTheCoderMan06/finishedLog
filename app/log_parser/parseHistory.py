@@ -17,8 +17,8 @@ ERROR_STRING = "error="
 REASON_STRING = "Reason"
 HEARTBEAT_PARAMETERS_STRING = "Heatbeat parameters:"
 OSP_STRING = "ospid="
-POSSIBLE_TRACE_NAMES = ["gwr"]
 PROCESS_STRING = "process_name="
+CONTINUE_FILE_STRING = "*** TRACE CONTINUES IN FILE "
 # Checks if a string is a valid ISO 8601 timestamp.
 # Args:
 #     timestamp_str (str): The string to check.
@@ -180,18 +180,21 @@ find_osp_file_cache = {}
 def findOspFile(trace_dir, targetOsp, ruid, dbName, dbId, processName):
     start_time = time.time()
     result = ""
-    for possible in POSSIBLE_TRACE_NAMES:
-        targetFile = f"{dbName}_{processName}_{targetOsp}_{possible}_{ruid}_{dbId}.trc"
-        print("Trying ", targetFile)
-        if os.path.exists(targetFile):
-            result = targetFile
-            break
+    mainOSPFile = f"{dbName}_{processName}_{targetOsp}.trc"
+    if os.path.exists(os.path.join(trace_dir, mainOSPFile)):
+        with open(os.path.join(trace_dir, mainOSPFile), 'r') as fp:
+            for line in fp.readlines():
+                if CONTINUE_FILE_STRING in line:
+                    words = line.split(" ")
+                    for word in words:
+                        if dbName in word:
+                            result = os.path.basename(word.strip())
 
     end_time = time.time()
     execution_time = end_time - start_time
     print(f"[{end_time}] findOspFile: Finished scanning '{trace_dir}'. Took {execution_time:.4f}s. Found: {'Yes' if result != "" else 'No'}")
-    
-    return result
+    print(result)
+    return f"file:///{os.path.join(trace_dir, result)}"
 
 
 # Finds the first .trc file in a directory.
