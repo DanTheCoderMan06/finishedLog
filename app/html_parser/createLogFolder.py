@@ -33,8 +33,23 @@ def createLogFolder(results, results_dir):
     tableBody = soup.find('tbody')
     tableBody.clear()
 
+    ruid_error_flags = {ruid: False for ruid in results['allRUIDS']}
+    for ruid in results['allRUIDS']:
+        for shard_group in results['history'][ruid]:
+            for event in results['history'][ruid][shard_group]:
+                for history_item in event.get('history', []):
+                    if history_item.get('type') == 'error' and history_item.get('code') != 3113:
+                        ruid_error_flags[ruid] = True
+                        break
+                if ruid_error_flags[ruid]:
+                    break
+            if ruid_error_flags[ruid]:
+                break
+
     for ruid in results['allRUIDS']:
         newRow = soup.new_tag('tr')
+        if ruid_error_flags[ruid]:
+            newRow['class'] = 'error-highlight'
         cell1 = soup.new_tag('td')
         link = soup.new_tag('a', attrs={'href': './RULog{}.html'.format(ruid)})
         link.string = "Replication Unit {}".format(ruid)
@@ -110,7 +125,19 @@ def createLogFolder(results, results_dir):
         shardGroupList = ruidSoup.find('tbody')
         shardGroupList.clear()
         for shardGroup in results['shardGroups']:
+            shard_group_error = False
+            for event in results['history'][ruid][shardGroup]:
+                for history_item in event.get('history', []):
+                    if history_item.get('type') == 'error' and history_item.get('code') != 3113:
+                        shard_group_error = True
+                        break
+                if shard_group_error:
+                    break
+            
             newRow = soup.new_tag('tr')
+            if shard_group_error:
+                newRow['class'] = 'error-highlight'
+
             cell1 = soup.new_tag('td')
             link = soup.new_tag('a', attrs={'href': './ShardGroupLog_{}_RUID_{}.html'.format(shardGroup, ruid)})
             link.string = "Shard Group {}".format(shardGroup)
@@ -128,12 +155,19 @@ def createLogFolder(results, results_dir):
             logResultList = shardGroupSoup.find('tbody')
             logResultList.clear()
             for logResult in shardGroupHistory:
+                log_result_error = False
+                for history_item in logResult.get('history', []):
+                    if history_item.get('type') == 'error' and history_item.get('code') != 3113:
+                        log_result_error = True
+                        break
                 newRow = soup.new_tag('tr')
+                if log_result_error:
+                    newRow['class'] = 'error-highlight'
 
                 history_filename = "history_{}.html".format(uuid.uuid4())
                 cell1 = soup.new_tag('td')
                 link = soup.new_tag('a', attrs={'href': './{}'.format(history_filename)})
-                link.string = logResult['timestamp']
+                link.string = logResult['timestamp'].split('+')[0]
                 cell1.append(link)
                 newRow.append(cell1)
 
@@ -150,7 +184,7 @@ def createLogFolder(results, results_dir):
                 newRow.append(cell4)
 
                 cell5 = soup.new_tag('td')
-                cell5.string = "{}".format(logResult['recoveryTime'])
+                cell5.string = "{:.2f}".format(logResult.get('recoveryTime', 0))
                 newRow.append(cell5)
 
                 logResultList.append(newRow)
@@ -168,14 +202,16 @@ def createLogFolder(results, results_dir):
 
                 for history_item in logResult['history']:
                     history_item_row = soup.new_tag('tr', attrs={'class': 'hoverable-row'})
+                    if history_item.get('type') == 'error' and history_item.get('code') != 3113:
+                        history_item_row['class'] = history_item_row.get('class', []) + ['error-highlight']
 
                     ts_cell = soup.new_tag('td')
                     if 'ospFile' in history_item and history_item['ospFile']:
                         error_file = soup.new_tag('a', attrs={'href': history_item['ospFile']})
-                        error_file.string = history_item['timestamp']
+                        error_file.string = history_item['timestamp'].split('+')[0]
                         ts_cell.append(error_file)
                     else:
-                        ts_cell.append(history_item['timestamp'])
+                        ts_cell.append(history_item['timestamp'].split('+')[0])
 
                     info_div = soup.new_tag('div', attrs={'class': 'row-info'})
                     parameter_info = "".join(history_item['parameters'])

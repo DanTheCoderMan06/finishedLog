@@ -168,3 +168,7 @@ tbody tr:not(.status-lost-service):not(.status-recovered):not(.status-info):hove
 
 a:visited { text-decoration: none; color:blue; }
 a:hover { text-decoration: none; color:blue; }
+
+.error-highlight {
+    background-color: #fee2e2 !important;
+}
