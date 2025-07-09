@@ -27,19 +27,7 @@ def parseLog(logDirectory, directoryName):
     allRUIDs = set()
     dbIds = {}
 
-    try:
-        with os.scandir(directoryName) as entries:
-            for entry in entries:
-                if entry.is_file():
-                    if "gdsctl.lst" in entry.name:
-                        fileName = entry.name
-    except FileNotFoundError:
-        print("Error: The directory '{}' does not exist.".format(directoryName))
-        return
-
-    if fileName == "":
-        print("Error: No .lst file was detected (Gdsctl file)!")
-        return
+    fileName = "sdbdeploy_gdsctl.lst"
 
     print("Found gdsctl log file!")
 
