@@ -32,7 +32,7 @@ def parseLog(logDirectory, directoryName):
     print("Found gdsctl log file!")
 
     try:
-        with open(os.path.join(directoryName, fileName)) as file:
+        with open(os.path.join(directoryName, fileName), 'r', encoding='utf-8', errors='ignore') as file:
             logFileLines = file.readlines()
     except OSError:
         print("Error: The file '{}' could not be opened.".format(fileName))
@@ -77,13 +77,13 @@ def parseLog(logDirectory, directoryName):
 
     for logFile in logFiles:
         try:
-            with open(logFile['logFile'], 'r') as file:
+            with open(logFile['logFile'], 'r', encoding='utf-8', errors='ignore') as file:
                 logLines = file.readlines()
-                ruidLists[logFile['dbName']] = set()
-                for i in range(len(logLines)):
-                    ruID = log_parser.parseRUIDLine(logLines[i])
-                    if ruID > 0:
-                        ruidLists[logFile['dbName']].add(ruID)
+            ruidLists[logFile['dbName']] = set()
+            for i in range(len(logLines)):
+                ruID = log_parser.parseRUIDLine(logLines[i])
+                if ruID > 0:
+                    ruidLists[logFile['dbName']].add(ruID)
         except Exception as e:
             print("Error: Failed to parse log file for {}, {}".format(logFile['dbName'], type(e).__name__))
             return

@@ -19,10 +19,10 @@ def createLogFolder(results, results_dir):
     style_css_path = os.path.join(script_dir, '..', 'html_assets', 'template', 'style.css')
     history_log_path = os.path.join(script_dir, '..', 'html_assets', 'template', 'emptyShardLogHistory.html')
 
-    with open(main_html_path, 'r') as f:
+    with open(main_html_path, 'r', encoding='utf-8', errors='ignore') as f:
         shardListHTML = f.read()
 
-    with open(style_css_path, 'r') as f:
+    with open(style_css_path, 'r', encoding='utf-8', errors='ignore') as f:
         globalCSS = f.read()
 
     soup = bs4.BeautifulSoup(shardListHTML, 'html.parser')
@@ -122,11 +122,11 @@ def createLogFolder(results, results_dir):
     with open(os.path.join(logDirectory,"index.html"), 'w', encoding='utf-8') as f:
         f.write(resultingHTML)
 
-    with open(os.path.join(logDirectory,"style.css"),'w') as f:
+    with open(os.path.join(logDirectory,"style.css"),'w', encoding='utf-8') as f:
         f.write(globalCSS)
 
     for ruid in results['allRUIDS']:
-        with open(ruLogPath,'r') as fp:
+        with open(ruLogPath,'r', encoding='utf-8', errors='ignore') as fp:
             ruidSoup = bs4.BeautifulSoup(fp.read(), 'html.parser')
 
         mainRUIDTitle = ruidSoup.find("h1", class_ = "main-title")
@@ -154,7 +154,7 @@ def createLogFolder(results, results_dir):
             newRow.append(cell1)
             shardGroupList.append(newRow)
 
-            with open(shardLogPath, 'r') as fp:
+            with open(shardLogPath, 'r', encoding='utf-8', errors='ignore') as fp:
                 shardGroupSoup = bs4.BeautifulSoup(fp.read(), 'html.parser')
 
             shardGroupTitle = shardGroupSoup.find("h1", class_="main-title")
@@ -198,7 +198,7 @@ def createLogFolder(results, results_dir):
 
                 logResultList.append(newRow)
 
-                with open(history_log_path, 'r') as f:
+                with open(history_log_path, 'r', encoding='utf-8', errors='ignore') as f:
                     history_html = f.read()
 
                 historySoup = bs4.BeautifulSoup(history_html, 'html.parser')
@@ -252,8 +252,8 @@ def createLogFolder(results, results_dir):
                 with open(os.path.join(logDirectory, history_filename), 'w', encoding='utf-8') as f:
                     f.write(historySoup.prettify())
 
-            with open(os.path.join(logDirectory, './ShardGroupLog_{}_RUID_{}.html'.format(shardGroup, ruid)), 'w') as fp:
+            with open(os.path.join(logDirectory, './ShardGroupLog_{}_RUID_{}.html'.format(shardGroup, ruid)), 'w', encoding='utf-8') as fp:
                 fp.write(shardGroupSoup.prettify())
 
-        with open(os.path.join(logDirectory, './RULog{}.html'.format(ruid)), 'w') as fp:
+        with open(os.path.join(logDirectory, './RULog{}.html'.format(ruid)), 'w', encoding='utf-8') as fp:
             fp.write(ruidSoup.prettify())

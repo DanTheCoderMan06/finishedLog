@@ -198,13 +198,16 @@ def findOspFile(trace_dir, targetOsp, ruid, dbName, dbId, processName):
     result = ""
     mainOSPFile = f"{dbName}_{processName}_{targetOsp}.trc"
     if os.path.exists(os.path.join(trace_dir, mainOSPFile)):
-        with open(os.path.join(trace_dir, mainOSPFile), 'r') as fp:
-            for line in fp.readlines():
-                if CONTINUE_FILE_STRING in line:
-                    words = line.split(" ")
-                    for word in words:
-                        if dbName in word:
-                            result = os.path.basename(word.strip())
+        try:
+            with open(os.path.join(trace_dir, mainOSPFile), 'r', encoding='utf-8', errors='ignore') as fp:
+                for line in fp.readlines():
+                    if CONTINUE_FILE_STRING in line:
+                        words = line.split(" ")
+                        for word in words:
+                            if dbName in word:
+                                result = os.path.basename(word.strip())
+        except Exception as e:
+            print(f"Error processing file {mainOSPFile}: {e}")
 
     end_time = time.time()
     execution_time = end_time - start_time
@@ -230,27 +233,30 @@ def findIncidentFile(incident_dir):
 
 
 def fetchFileInfo(incidentObject, targetLog, rmdbs, ruids):
-    with open(targetLog, 'r') as fp:
-        for line in fp.readlines():
-            if CONTINUED_FROM_FILE_DUMP_STRING in line:
-                lineWords = line.split(' ')
-                for word in lineWords:
-                    if ".trc" in word:
-                        filePath = word.strip()
-                        incidentObject['mainFile'] = "file:///{}".format(filePath)
-                        baseName = os.path.basename(filePath)
-                        pathWords = baseName.split('_')
-                        for info in pathWords:
-                            if logExists(rmdbs, info):
-                                    incidentObject['dbLogFolderName'] = info
-                            try:
-                                onlyNumbers = "".join([char for char in info if char.isdigit()])
-                                if int(onlyNumbers) in ruids:
-                                    incidentObject['ruid'] = int(onlyNumbers)
-                                elif int(onlyNumbers) < 10000:
-                                    incidentObject['dbId'] = int(onlyNumbers)
-                            except:
-                                pass
+    try:
+        with open(targetLog, 'r', encoding='utf-8', errors='ignore') as fp:
+            for line in fp.readlines():
+                if CONTINUED_FROM_FILE_DUMP_STRING in line:
+                    lineWords = line.split(' ')
+                    for word in lineWords:
+                        if ".trc" in word:
+                            filePath = word.strip()
+                            incidentObject['mainFile'] = "file:///{}".format(filePath)
+                            baseName = os.path.basename(filePath)
+                            pathWords = baseName.split('_')
+                            for info in pathWords:
+                                if logExists(rmdbs, info):
+                                        incidentObject['dbLogFolderName'] = info
+                                try:
+                                    onlyNumbers = "".join([char for char in info if char.isdigit()])
+                                    if int(onlyNumbers) in ruids:
+                                        incidentObject['ruid'] = int(onlyNumbers)
+                                    elif int(onlyNumbers) < 10000:
+                                        incidentObject['dbId'] = int(onlyNumbers)
+                                except:
+                                    pass
+    except Exception as e:
+        print(f"Error processing file {targetLog}: {e}")
 
 
 
@@ -347,8 +353,9 @@ def parseHistory(allRUIDs, rmdbs, logFiles, dbIds):
 
     for logFile in logFiles:
         print(f"[{time.time()}] Processing log file: {logFile['logFile']} for db: {logFile['dbName']}")
-        with open(logFile['logFile'], 'r') as fp:
-            dbLogsCache[logFile['dbName']] = fp.readlines()
+        try:
+            with open(logFile['logFile'], 'r', encoding='utf-8', errors='ignore') as fp:
+                dbLogsCache[logFile['dbName']] = fp.readlines()
             parsed_log = parseLogFile(dbLogsCache[logFile['dbName']], logFile['dbName'], dbIds[logFile['dbName']])
             print(f"[{time.time()}] Parsed leadership changes for {logFile['dbName']}: {parsed_log}")
             for ruid, events in parsed_log.items():
@@ -361,6 +368,9 @@ def parseHistory(allRUIDs, rmdbs, logFiles, dbIds):
                             if rmdb['shardGroup'] not in shardGroups:
                                 shardGroups[rmdb['shardGroup']] = list()
                             shardGroups[rmdb['shardGroup']].append(rmdb['dbName'])
+        except Exception as e:
+            print(f"Error processing log file {logFile['logFile']}: {e}")
+            continue
 
     for ruid in history:
         for shard_group in history[ruid]:
