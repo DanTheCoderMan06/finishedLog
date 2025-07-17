@@ -434,7 +434,6 @@ def parseWatsonLog(logDirectory):
                 if dif_file:
                     base_name = dif_file.split('.dif')[0]
                     log_file = base_name + ".log"
-                    map_file = base_name + ".dif_map"
                     
                     errors.append({
                         "dif_file": os.path.join(logDirectory, dif_file),
