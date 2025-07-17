@@ -414,3 +414,32 @@ def parseHistory(allRUIDs, rmdbs, logFiles, dbIds):
 
     print(f"[{time.time()}] --- Finished parseHistory ---")
     return history, incidents
+
+def parseWatsonLog(logDirectory):
+    watsonLogPath = os.path.join(logDirectory, 'watson.log')
+    if not os.path.exists(watsonLogPath):
+        return []
+
+    errors = []
+    with open(watsonLogPath, 'r', encoding='utf-8', errors='ignore') as f:
+        for line in f:
+            if "DIF" in line and "FAIL" in line and "ERROR" in line:
+                line_parts = line.split()
+                dif_file = None
+                for part in line_parts:
+                    if ".dif" in part:
+                        dif_file = part
+                        break
+                
+                if dif_file:
+                    base_name = dif_file.split('.dif')[0]
+                    log_file = base_name + ".log"
+                    map_file = base_name + ".dif_map"
+                    
+                    errors.append({
+                        "dif_file": os.path.join(logDirectory, dif_file),
+                        "log_file": os.path.join(logDirectory, log_file),
+                        "map_file": os.path.join(logDirectory, map_file),
+                        "line": line.strip()
+                    })
+    return errors

@@ -55,6 +55,16 @@ def createLogFolder(results, results_dir):
         link.string = "Replication Unit {}".format(ruid)
         cell1.append(link)
         newRow.append(cell1)
+
+        error_cell = soup.new_tag('td')
+        errors = set()
+        for shard_group in results['history'][ruid]:
+            for event in results['history'][ruid][shard_group]:
+                for history_item in event.get('history', []):
+                    if history_item.get('type') == 'error' and history_item.get('code') != 3113:
+                        errors.add(history_item.get('code'))
+        error_cell.string = str(errors) if errors else "No Errors"
+        newRow.append(error_cell)
         tableBody.append(newRow)
 
     if 'incidents' in results and results['incidents']:
@@ -117,6 +127,65 @@ def createLogFolder(results, results_dir):
         
         container.append(incident_container)
 
+    if 'watson_errors' in results and results['watson_errors']:
+        container = soup.find('div', class_='container')
+
+        watson_title = soup.new_tag('h1', attrs={'class': 'main-title'})
+        watson_title.string = "Watson Errors"
+        container.append(watson_title)
+
+        watson_container = soup.new_tag('div', attrs={'class': 'table-container'})
+        
+        watson_table = soup.new_tag('table')
+        watson_thead = soup.new_tag('thead')
+        watson_tr = soup.new_tag('tr')
+        headers = ["Dif File", "Log File", "Map File", "Line"]
+        for header_text in headers:
+            watson_th = soup.new_tag('th')
+            watson_th.string = header_text
+            watson_tr.append(watson_th)
+        watson_thead.append(watson_tr)
+        watson_table.append(watson_thead)
+        
+        watson_tbody = soup.new_tag('tbody')
+        for item in results['watson_errors']:
+            new_row = soup.new_tag('tr')
+            
+            dif_cell = soup.new_tag('td')
+            dif_link = soup.new_tag('a', attrs={'href': "file:///{}".format(item['dif_file'])})
+            dif_link.string = os.path.basename(item['dif_file'])
+            dif_cell.append(dif_link)
+            new_row.append(dif_cell)
+
+            log_cell = soup.new_tag('td')
+            if os.path.exists(item['log_file']):
+                log_link = soup.new_tag('a', attrs={'href': "file:///{}".format(item['log_file'])})
+                log_link.string = os.path.basename(item['log_file'])
+                log_cell.append(log_link)
+            else:
+                log_cell.string = "N/A"
+            new_row.append(log_cell)
+
+            map_cell = soup.new_tag('td')
+            if os.path.exists(item['map_file']):
+                map_link = soup.new_tag('a', attrs={'href': "file:///{}".format(item['map_file'])})
+                map_link.string = os.path.basename(item['map_file'])
+                map_cell.append(map_link)
+            else:
+                map_cell.string = "N/A"
+            new_row.append(map_cell)
+
+            line_cell = soup.new_tag('td')
+            line_cell.string = item['line']
+            new_row.append(line_cell)
+            
+            watson_tbody.append(new_row)
+        
+        watson_table.append(watson_tbody)
+        watson_container.append(watson_table)
+        
+        container.append(watson_container)
+
     resultingHTML = soup.prettify()
 
     with open(os.path.join(logDirectory,"index.html"), 'w', encoding='utf-8') as f:
@@ -152,6 +221,15 @@ def createLogFolder(results, results_dir):
             link.string = "Shard Group {}".format(shardGroup)
             cell1.append(link)
             newRow.append(cell1)
+
+            error_cell = soup.new_tag('td')
+            errors = set()
+            for event in results['history'][ruid][shardGroup]:
+                for history_item in event.get('history', []):
+                    if history_item.get('type') == 'error' and history_item.get('code') != 3113:
+                        errors.add(history_item.get('code'))
+            error_cell.string = str(errors) if errors else "No Errors"
+            newRow.append(error_cell)
             shardGroupList.append(newRow)
 
             with open(shardLogPath, 'r', encoding='utf-8', errors='ignore') as fp:
