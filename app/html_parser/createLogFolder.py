@@ -127,6 +127,8 @@ def createLogFolder(results, results_dir):
         
         container.append(incident_container)
 
+    breakpoint()
+
     if 'watson_errors' in results and results['watson_errors']:
         container = soup.find('div', class_='container')
 
@@ -139,7 +141,7 @@ def createLogFolder(results, results_dir):
         watson_table = soup.new_tag('table')
         watson_thead = soup.new_tag('thead')
         watson_tr = soup.new_tag('tr')
-        headers = ["Dif File", "Log File", "Map File", "Line"]
+        headers = ["Dif File", "Log File"]
         for header_text in headers:
             watson_th = soup.new_tag('th')
             watson_th.string = header_text
@@ -165,19 +167,6 @@ def createLogFolder(results, results_dir):
             else:
                 log_cell.string = "N/A"
             new_row.append(log_cell)
-
-            map_cell = soup.new_tag('td')
-            if os.path.exists(item['map_file']):
-                map_link = soup.new_tag('a', attrs={'href': "file:///{}".format(item['map_file'])})
-                map_link.string = os.path.basename(item['map_file'])
-                map_cell.append(map_link)
-            else:
-                map_cell.string = "N/A"
-            new_row.append(map_cell)
-
-            line_cell = soup.new_tag('td')
-            line_cell.string = item['line']
-            new_row.append(line_cell)
             
             watson_tbody.append(new_row)
         

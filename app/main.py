@@ -101,7 +101,8 @@ def parseLog(logDirectory, directoryName):
     logContents['history'], logContents['incidents'] = log_parser.parseHistory(allRUIDs, rmdbs, logFiles, dbIds)
     logContents['allRUIDS'] = allRUIDs
     logContents['logDirectory'] = directoryName
-    logContents['watson_errors'] = log_parser.parseWatsonLog(os.path.join(extractionDirectory, 'diag'))
+    breakpoint()
+    logContents['watson_errors'] = log_parser.parseWatsonLog(extractionDirectory)
 
     print("Creating Log Folder")
 

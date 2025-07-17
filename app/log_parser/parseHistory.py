@@ -438,8 +438,6 @@ def parseWatsonLog(logDirectory):
                     
                     errors.append({
                         "dif_file": os.path.join(logDirectory, dif_file),
-                        "log_file": os.path.join(logDirectory, log_file),
-                        "map_file": os.path.join(logDirectory, map_file),
-                        "line": line.strip()
+                        "log_file": os.path.join(logDirectory, log_file)
                     })
     return errors
