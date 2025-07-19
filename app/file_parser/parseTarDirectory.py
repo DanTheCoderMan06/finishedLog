@@ -1,6 +1,7 @@
 import tarfile
 import os
-
+import gzip
+import shutil
 MIN_LINES_FOR_LOG = 30
 DEBUG_STRING = "debug_"
 AIME_STRING = "aime"
@@ -30,7 +31,7 @@ def openTarDirectory(filePath, destination):
 #     str: The path to the log file.
 # Raises:
 #     FileNotFoundError: If no log file is found.
-def findLogFile(directory):
+def findLogFile(directory, destination_dir):
     targetDir = ""
     with os.scandir(directory) as entries:
         for item in entries:
@@ -39,8 +40,22 @@ def findLogFile(directory):
                 if AIME_STRING in item.name:
                     targetDir = item.name
                     break
-    print(os.path.join(directory,targetDir,'log',f"debug_{targetDir}.log"))
-    return os.path.join(directory,targetDir,'log',f"debug_{targetDir}.log")
+    
+    log_path = os.path.join(directory, targetDir, 'log', f"debug_{targetDir}.log")
+    gz_log_path = log_path + ".gz"
+
+    if os.path.exists(gz_log_path):
+        os.makedirs(destination_dir, exist_ok=True)
+        unzipped_log_filename = f"debug_{targetDir}.log"
+        unzipped_log_path = os.path.join(destination_dir, unzipped_log_filename)
+        with gzip.open(gz_log_path, 'rb') as f_in:
+            with open(unzipped_log_path, 'wb') as f_out:
+                shutil.copyfileobj(f_in, f_out)
+        print(f"Unzipped {gz_log_path} to {unzipped_log_path}")
+        return unzipped_log_path
+    
+    print(log_path)
+    return log_path
 
 def findMainDir(directory):
     with os.scandir(directory) as entries:

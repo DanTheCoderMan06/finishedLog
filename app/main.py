@@ -4,6 +4,8 @@ import log_parser
 import html_parser
 import file_parser
 import datetime
+import gzip
+import shutil
 
 # ./scratch/reports C:\\Users\\danii\\OneDrive\\Documents\\mytar2\\lrgdbcongsmshsnr17
 
@@ -34,11 +36,21 @@ def parseLog(logDirectory, directoryName):
     try:
         with open(os.path.join(directoryName, fileName), 'r', encoding='utf-8', errors='ignore') as file:
             logFileLines = file.readlines()
+    except FileNotFoundError:
+       gz_path = os.path.join(directoryName, fileName + ".gz")
+       if os.path.exists(gz_path):
+           unzipped_path = os.path.join(directoryName, fileName)
+           with gzip.open(gz_path, 'rb') as f_in:
+               with open(unzipped_path, 'wb') as f_out:
+                   shutil.copyfileobj(f_in, f_out)
+           print(f"Unzipped {gz_path} to {unzipped_path}")
+           with open(unzipped_path, 'r', encoding='utf-8', errors='ignore') as file:
+               logFileLines = file.readlines()
+       else:
+           print("Error: The file '{}' could not be found.".format(fileName))
+           return
     except OSError:
         print("Error: The file '{}' could not be opened.".format(fileName))
-        return
-    except FileNotFoundError:
-        print("Error: The file '{}' could not be found.".format(fileName))
         return
 
     if not logFileLines:
@@ -69,9 +81,11 @@ def parseLog(logDirectory, directoryName):
     for rmdb in rmdbs:
         rmdbName = rmdb['dbName']
         targetLog = os.path.join(extractionDirectory, 'diag', 'rdbms', rmdbName)
-        print(file_parser.findLogFile(targetLog))
+        report_dir = os.path.normpath(os.path.join(logDirectory, os.path.basename(directoryName)))
+        print(file_parser.findLogFile(targetLog, report_dir))
         try:
-            logFiles.append({'dbName': rmdbName, 'logFile': file_parser.findLogFile(targetLog)})
+            unzipped_log_file = file_parser.findLogFile(targetLog, report_dir)
+            logFiles.append({'dbName': rmdbName, 'logFile': unzipped_log_file, 'originalLogFile': targetLog})
         except Exception as e:
             print("Error: Failed to find log file for {}, {}".format(rmdbName, type(e).__name__))
 

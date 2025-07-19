@@ -3,6 +3,9 @@ import re
 import datetime
 import bisect
 import time
+import gzip
+import shutil
+import pdb
 
 ROLE_CHANGE_STRING = "SNR role change "
 RU_ID_STRING = "RU_ID"
@@ -225,18 +228,41 @@ def findIncidentFile(incident_dir):
     print(f"[{time.time()}] findIncidentFile: searching in '{incident_dir}'")
     with os.scandir(incident_dir) as items:
         for item in items:
-            if item.name.endswith('.trc'):
+            if item.name.endswith('.trc.gz'):
+                gz_path = os.path.join(incident_dir, item.name)
+                unzipped_path = gz_path[:-3]
+                with gzip.open(gz_path, 'rb') as f_in:
+                    with open(unzipped_path, 'wb') as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+                print(f"[{time.time()}] findIncidentFile: found and unzipped '{gz_path}' to '{unzipped_path}'")
+                return unzipped_path
+            elif item.name.endswith('.trc'):
                 newPath = os.path.join(incident_dir,item.name)
                 print(f"[{time.time()}] findIncidentFile: found '{newPath}'")
                 return newPath
+            breakpoint()
     print(f"[{time.time()}] findIncidentFile: no .trc file found in '{incident_dir}'")
 
 
 def fetchFileInfo(incidentObject, targetLog, rmdbs, ruids):
     try:
-        with open(targetLog, 'r', encoding='utf-8', errors='ignore') as fp:
-            for line in fp.readlines():
-                if CONTINUED_FROM_FILE_DUMP_STRING in line:
+        try:
+            with open(targetLog, 'r', encoding='utf-8', errors='ignore') as fp:
+                lines = fp.readlines()
+        except FileNotFoundError:
+            gz_path = targetLog + ".gz"
+            if os.path.exists(gz_path):
+                with gzip.open(gz_path, 'rb') as f_in:
+                    with open(targetLog, 'wb') as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+                with open(targetLog, 'r', encoding='utf-8', errors='ignore') as fp:
+                    lines = fp.readlines()
+            else:
+                print(f"Error processing file {targetLog}: File not found")
+                return
+
+        for line in lines:
+            if CONTINUED_FROM_FILE_DUMP_STRING in line:
                     lineWords = line.split(' ')
                     for word in lineWords:
                         if ".trc" in word:
@@ -267,6 +293,7 @@ def fetchFileInfo(incidentObject, targetLog, rmdbs, ruids):
 #     list: A list of dictionaries, where each dictionary represents an incident.
 def getAllIncidents(incidentPath, rmdbs, ruids):
     print(f"[{time.time()}] getAllIncidents: getting incidents from '{incidentPath}'")
+    breakpoint()
     results = []
     with os.scandir(incidentPath) as items:
         for item in items:
@@ -278,6 +305,7 @@ def getAllIncidents(incidentPath, rmdbs, ruids):
                 newincident['fileName'] = "file:///{}".format(targetFile)
                 fetchFileInfo(newincident,targetFile, rmdbs, ruids)
                 results.append(newincident)
+            breakpoint()
     return results
 
 def getLogName(rmdbList, target):
@@ -323,9 +351,15 @@ def parseAllOtherEvents(logFileContent, ruidList, dbName, dbId, logFilePath, inc
 
     print(f"[{time.time()}] parseAllOtherEvents: searching for incidents for log file '{logFilePath}'")
     incident_parent_dir = findParentWithSubdir('trace', logFilePath)
+    if not incident_parent_dir:
+        unzipPath = os.path.join(logFilePath, dbLogName)
+        if os.path.exists(unzipPath):
+            incident_parent_dir = unzipPath
+    breakpoint()
     if incident_parent_dir:
         incidentPath = os.path.join(incident_parent_dir, 'incident')
         print(f"[{time.time()}] parseAllOtherEvents: incident path is '{incidentPath}'")
+        breakpoint()
         if os.path.isdir(incidentPath):
             for item in getAllIncidents(incidentPath, rmdbs, ruidList):
                 if 'mainFile' in item:
@@ -344,7 +378,7 @@ def parseHistory(allRUIDs, rmdbs, logFiles, dbIds):
     incidents = list()
     dbLogsCache = dict()
     shardGroups = dict()
-    logFilePaths = {logFile['dbName']: logFile['logFile'] for logFile in logFiles}
+    logFilePaths = {logFile['dbName']: logFile['originalLogFile'] for logFile in logFiles}
     print(f"[{time.time()}] --- Starting parseHistory ---")
     print(f"[{time.time()}] allRUIDs: {allRUIDs}")
     print(f"[{time.time()}] rmdbs: {rmdbs}")
@@ -391,6 +425,7 @@ def parseHistory(allRUIDs, rmdbs, logFiles, dbIds):
         if not logFilePath:
             continue
 
+        breakpoint()
         otherEvents = parseAllOtherEvents(logFileContents, allRUIDs, dbName, dbIds[dbName], logFilePath, incidents, rmdbs)
         print(f"[{time.time()}] Parsed other events for {dbName}: {otherEvents}")
 

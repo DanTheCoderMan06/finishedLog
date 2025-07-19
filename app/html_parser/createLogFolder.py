@@ -94,14 +94,14 @@ def createLogFolder(results, results_dir):
             path = item['fileName']
             new_row = soup.new_tag('tr')
             cell = soup.new_tag('td')
-            link = soup.new_tag('a', attrs={'href': path})
+            link = soup.new_tag('a', attrs={'href': './' + os.path.basename(path)})
             link.string = name
             cell.append(link)
             new_row.append(cell)
 
             main_file_cell = soup.new_tag('td')
             if 'mainFile' in item and item['mainFile']:
-                main_file_link = soup.new_tag('a', attrs={'href': item['mainFile']})
+                main_file_link = soup.new_tag('a', attrs={'href': './' + os.path.basename(item['mainFile'])})
                 main_file_link.string = os.path.basename(item['mainFile'])
                 main_file_cell.append(main_file_link)
             else:
@@ -161,7 +161,7 @@ def createLogFolder(results, results_dir):
 
             log_cell = soup.new_tag('td')
             if os.path.exists(item['log_file']):
-                log_link = soup.new_tag('a', attrs={'href': "file:///{}".format(item['log_file'])})
+                log_link = soup.new_tag('a', attrs={'href': './' + os.path.basename(item['log_file'])})
                 log_link.string = os.path.basename(item['log_file'])
                 log_cell.append(log_link)
             else:
@@ -283,7 +283,7 @@ def createLogFolder(results, results_dir):
 
                     ts_cell = soup.new_tag('td')
                     if 'ospFile' in history_item and history_item['ospFile']:
-                        error_file = soup.new_tag('a', attrs={'href': history_item['ospFile']})
+                        error_file = soup.new_tag('a', attrs={'href': './' + os.path.basename(history_item['ospFile'])})
                         error_file.string = history_item['timestamp'].split('+')[0]
                         ts_cell.append(error_file)
                     else:

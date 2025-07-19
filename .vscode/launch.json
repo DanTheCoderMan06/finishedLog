@@ -33,6 +33,17 @@
                 "./scratch/reports",
                 "C:\\Users\\danii\\OneDrive\\Documents\\lrgdbcongsmshsnrcrsw4"
             ]
+        },
+        {
+            "name": "Python: main.py 3 (zip)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/app/main.py",
+            "console": "integratedTerminal",
+            "args": [
+                "./scratch/reports",
+                "C:\\Users\\danii\\OneDrive\\Documents\\oracleStuff\\mytar3\\lrgdbcongsmshsnrcr17b"
+            ]
         }
     ]
 }
