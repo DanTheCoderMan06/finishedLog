@@ -78,10 +78,10 @@ def parseLog(logDirectory, directoryName):
     print("SHARD GROUPS: ", shardGroups)
     print("RMDBS", rmdbs)
 
+    report_dir = os.path.normpath(os.path.join(logDirectory, os.path.basename(directoryName)))
     for rmdb in rmdbs:
         rmdbName = rmdb['dbName']
         targetLog = os.path.join(extractionDirectory, 'diag', 'rdbms', rmdbName)
-        report_dir = os.path.normpath(os.path.join(logDirectory, os.path.basename(directoryName)))
         print(file_parser.findLogFile(targetLog, report_dir))
         try:
             unzipped_log_file = file_parser.findLogFile(targetLog, report_dir)
@@ -112,11 +112,11 @@ def parseLog(logDirectory, directoryName):
 
     logContents['rmdbs'] = rmdbs
     logContents['shardGroups'] = shardGroups
-    logContents['history'], logContents['incidents'] = log_parser.parseHistory(allRUIDs, rmdbs, logFiles, dbIds)
+    logContents['history'], logContents['incidents'] = log_parser.parseHistory(allRUIDs, rmdbs, logFiles, dbIds, report_dir)
     logContents['allRUIDS'] = allRUIDs
     logContents['logDirectory'] = directoryName
     breakpoint()
-    logContents['watson_errors'] = log_parser.parseWatsonLog(extractionDirectory)
+    logContents['watson_errors'] = log_parser.parseWatsonLog(extractionDirectory, report_dir)
 
     print("Creating Log Folder")
 

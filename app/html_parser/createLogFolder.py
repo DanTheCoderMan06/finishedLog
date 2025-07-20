@@ -3,6 +3,8 @@ import os
 import datetime
 import uuid
 import pdb
+import gzip
+import shutil
 
 # Generates an HTML log folder from a dictionary of results.
 # Args:
@@ -91,7 +93,21 @@ def createLogFolder(results, results_dir):
         for i in range(len(results['incidents'])):
             item = results['incidents'][i]
             name = item['folderName']
-            path = item['fileName']
+            path = item['fileName'].replace('file:///', '')
+            if os.path.exists(path):
+                try:
+                    dest_path = os.path.join(logDirectory, os.path.basename(path))
+                    shutil.copy2(path, dest_path)
+                    path = dest_path
+                except PermissionError:
+                    print(f"Permission denied to copy {path}")
+            elif os.path.exists(path + ".gz"):
+                gz_path = path + ".gz"
+                unzipped_path = os.path.join(logDirectory, os.path.basename(path))
+                with gzip.open(gz_path, 'rb') as f_in:
+                    with open(unzipped_path, 'wb') as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+                path = unzipped_path
             new_row = soup.new_tag('tr')
             cell = soup.new_tag('td')
             link = soup.new_tag('a', attrs={'href': './' + os.path.basename(path)})
@@ -101,8 +117,23 @@ def createLogFolder(results, results_dir):
 
             main_file_cell = soup.new_tag('td')
             if 'mainFile' in item and item['mainFile']:
-                main_file_link = soup.new_tag('a', attrs={'href': './' + os.path.basename(item['mainFile'])})
-                main_file_link.string = os.path.basename(item['mainFile'])
+                main_file_path = item['mainFile'].replace('file:///', '')
+                if os.path.exists(main_file_path):
+                    try:
+                        dest_path = os.path.join(logDirectory, os.path.basename(main_file_path))
+                        shutil.copy2(main_file_path, dest_path)
+                        main_file_path = dest_path
+                    except PermissionError:
+                        print(f"Permission denied to copy {main_file_path}")
+                elif os.path.exists(main_file_path + ".gz"):
+                    gz_path = main_file_path + ".gz"
+                    unzipped_path = os.path.join(logDirectory, os.path.basename(main_file_path))
+                    with gzip.open(gz_path, 'rb') as f_in:
+                        with open(unzipped_path, 'wb') as f_out:
+                            shutil.copyfileobj(f_in, f_out)
+                    main_file_path = unzipped_path
+                main_file_link = soup.new_tag('a', attrs={'href': './' + os.path.basename(main_file_path)})
+                main_file_link.string = os.path.basename(main_file_path)
                 main_file_cell.append(main_file_link)
             else:
                 main_file_cell.string = "N/A"
@@ -127,7 +158,6 @@ def createLogFolder(results, results_dir):
         
         container.append(incident_container)
 
-    breakpoint()
 
     if 'watson_errors' in results and results['watson_errors']:
         container = soup.find('div', class_='container')
@@ -154,7 +184,7 @@ def createLogFolder(results, results_dir):
             new_row = soup.new_tag('tr')
             
             dif_cell = soup.new_tag('td')
-            dif_link = soup.new_tag('a', attrs={'href': "file:///{}".format(item['dif_file'])})
+            dif_link = soup.new_tag('a', attrs={'href': './' + os.path.basename(item['dif_file'])})
             dif_link.string = os.path.basename(item['dif_file'])
             dif_cell.append(dif_link)
             new_row.append(dif_cell)

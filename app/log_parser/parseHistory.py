@@ -23,6 +23,7 @@ OSP_STRING = "ospid="
 PROCESS_STRING = "process_name="
 CONTINUE_FILE_STRING = "*** TRACE CONTINUES IN FILE "
 CONTINUED_FROM_FILE_DUMP_STRING = "Dump continued from file: "
+FILE_STRING = "FILE"
 
 def rmdbExists(rmdbList, target):
     for rmdb in rmdbList:
@@ -196,27 +197,56 @@ def findParentWithSubdir(target_subdir, start_path):
 
 find_osp_file_cache = {}
 
-def findOspFile(trace_dir, targetOsp, ruid, dbName, dbId, processName):
-    start_time = time.time()
-    result = ""
-    mainOSPFile = f"{dbName}_{processName}_{targetOsp}.trc"
-    if os.path.exists(os.path.join(trace_dir, mainOSPFile)):
-        try:
-            with open(os.path.join(trace_dir, mainOSPFile), 'r', encoding='utf-8', errors='ignore') as fp:
-                for line in fp.readlines():
-                    if CONTINUE_FILE_STRING in line:
-                        words = line.split(" ")
-                        for word in words:
-                            if dbName in word:
-                                result = os.path.basename(word.strip())
-        except Exception as e:
-            print(f"Error processing file {mainOSPFile}: {e}")
+def findOspFile(trace_dir, targetOsp, ruid, dbName, dbId, processName, targetUnzipDirectory):
+   mainOSPFile = f"{dbName}_{processName}_{targetOsp}.trc"
+   osp_path = os.path.join(trace_dir, mainOSPFile)
+   
+   is_gzipped = False
+   if not os.path.exists(osp_path):
+       if os.path.exists(osp_path + ".gz"):
+           osp_path += ".gz"
+           is_gzipped = True
+       else:
+           return ""
 
-    end_time = time.time()
-    execution_time = end_time - start_time
-    print(f"[{end_time}] findOspFile: Finished scanning '{trace_dir}'. Took {execution_time:.4f}s. Found: {'Yes' if result != "" else 'No'}")
-    print(result)
-    return f"file:///{os.path.join(trace_dir, result)}"
+   read_path = osp_path
+   if is_gzipped:
+       dest_path = os.path.join(targetUnzipDirectory, mainOSPFile)
+       with gzip.open(osp_path, 'rb') as f_in:
+           with open(dest_path, 'wb') as f_out:
+               shutil.copyfileobj(f_in, f_out)
+       read_path = dest_path
+
+   continued_filename = ""
+   try:
+       with open(read_path, 'r', encoding='utf-8', errors='ignore') as fp:
+           for line in fp.readlines():
+               if CONTINUE_FILE_STRING in line:
+                   words = line.split(" ")
+                   for word in words:
+                       if dbName in word:
+                           continued_filename = os.path.basename(word.strip())
+                           break
+                   if continued_filename:
+                       break
+   except Exception as e:
+       print(f"Error processing file {read_path}: {e}")
+
+   if not continued_filename:
+       return read_path
+
+   continued_path_source = os.path.join(trace_dir, continued_filename)
+   
+   if os.path.exists(continued_path_source):
+       return continued_path_source
+   elif os.path.exists(continued_path_source + ".gz"):
+       continued_path_dest = os.path.join(targetUnzipDirectory, continued_filename)
+       with gzip.open(continued_path_source + ".gz", 'rb') as f_in:
+           with open(continued_path_dest, 'wb') as f_out:
+               shutil.copyfileobj(f_in, f_out)
+       return continued_path_dest
+   
+   return read_path
 
 
 # Finds the first .trc file in a directory.
@@ -224,7 +254,7 @@ def findOspFile(trace_dir, targetOsp, ruid, dbName, dbId, processName):
 #     incident_dir (str): The directory to search.
 # Returns:
 #     str: The path to the .trc file, or None if not found.
-def findIncidentFile(incident_dir):
+def findIncidentFile(incident_dir, targetUnzip):
     print(f"[{time.time()}] findIncidentFile: searching in '{incident_dir}'")
     with os.scandir(incident_dir) as items:
         for item in items:
@@ -232,7 +262,7 @@ def findIncidentFile(incident_dir):
                 gz_path = os.path.join(incident_dir, item.name)
                 unzipped_path = gz_path[:-3]
                 with gzip.open(gz_path, 'rb') as f_in:
-                    with open(unzipped_path, 'wb') as f_out:
+                    with open(os.path.join(targetUnzip, os.path.basename(unzipped_path)), 'wb') as f_out:
                         shutil.copyfileobj(f_in, f_out)
                 print(f"[{time.time()}] findIncidentFile: found and unzipped '{gz_path}' to '{unzipped_path}'")
                 return unzipped_path
@@ -240,11 +270,10 @@ def findIncidentFile(incident_dir):
                 newPath = os.path.join(incident_dir,item.name)
                 print(f"[{time.time()}] findIncidentFile: found '{newPath}'")
                 return newPath
-            breakpoint()
     print(f"[{time.time()}] findIncidentFile: no .trc file found in '{incident_dir}'")
 
 
-def fetchFileInfo(incidentObject, targetLog, rmdbs, ruids):
+def fetchFileInfo(incidentObject, targetLog, rmdbs, ruids, targetUnzip):
     try:
         try:
             with open(targetLog, 'r', encoding='utf-8', errors='ignore') as fp:
@@ -253,10 +282,11 @@ def fetchFileInfo(incidentObject, targetLog, rmdbs, ruids):
             gz_path = targetLog + ".gz"
             if os.path.exists(gz_path):
                 with gzip.open(gz_path, 'rb') as f_in:
-                    with open(targetLog, 'wb') as f_out:
+                    with open(os.path.join(targetUnzip, os.path.basename(targetLog)), 'wb') as f_out:
                         shutil.copyfileobj(f_in, f_out)
                 with open(targetLog, 'r', encoding='utf-8', errors='ignore') as fp:
                     lines = fp.readlines()
+                
             else:
                 print(f"Error processing file {targetLog}: File not found")
                 return
@@ -291,21 +321,20 @@ def fetchFileInfo(incidentObject, targetLog, rmdbs, ruids):
 #     incidentPath (str): The path to the incident directory.
 # Returns:
 #     list: A list of dictionaries, where each dictionary represents an incident.
-def getAllIncidents(incidentPath, rmdbs, ruids):
+def getAllIncidents(incidentPath, rmdbs, ruids, targetUnzip):
     print(f"[{time.time()}] getAllIncidents: getting incidents from '{incidentPath}'")
-    breakpoint()
     results = []
     with os.scandir(incidentPath) as items:
         for item in items:
             full_path = os.path.join(incidentPath, item.name)
             if os.path.isdir(full_path):
                 newincident = {}
-                targetFile = findIncidentFile(full_path)
+                targetFile = findIncidentFile(full_path, targetUnzip)
                 newincident['folderName'] = item.name
                 newincident['fileName'] = "file:///{}".format(targetFile)
-                fetchFileInfo(newincident,targetFile, rmdbs, ruids)
+                newincident['folderPath'] = full_path
+                fetchFileInfo(newincident,targetFile, rmdbs, ruids, targetUnzip)
                 results.append(newincident)
-            breakpoint()
     return results
 
 def getLogName(rmdbList, target):
@@ -324,7 +353,7 @@ def getLogName(rmdbList, target):
 #     incidents (list): A list to store any incidents found.
 # Returns:
 #     dict: A dictionary where the keys are RUIDs and the values are lists of events.
-def parseAllOtherEvents(logFileContent, ruidList, dbName, dbId, logFilePath, incidents, rmdbs):
+def parseAllOtherEvents(logFileContent, ruidList, dbName, dbId, logFilePath, incidents, rmdbs, targetUnzipDirectory):
     dbLogName = getLogName(rmdbs, dbName)
     result = {ruid: [] for ruid in ruidList}
     for i in range(len(logFileContent)):
@@ -335,10 +364,15 @@ def parseAllOtherEvents(logFileContent, ruidList, dbName, dbId, logFilePath, inc
             lineInfo = parseErrorLog(logFileContent, i)
             if lineInfo['code'] == 0:
                 continue
+            
             if 'ospid' in lineInfo:
                 trace_parent_dir = findParentWithSubdir('trace', logFilePath)
+                if not trace_parent_dir:
+                    unzipPath = os.path.join(logFilePath, dbLogName)
+                    if os.path.exists(unzipPath):
+                        trace_parent_dir = unzipPath
                 if trace_parent_dir:
-                    lineInfo['ospFile'] = findOspFile(os.path.join(trace_parent_dir, 'trace'), lineInfo['ospid'], fetchRUIDFromLine(line), dbLogName, dbId,lineInfo['process_name'])
+                    lineInfo['ospFile'] = findOspFile(os.path.join(trace_parent_dir, 'trace'), lineInfo['ospid'], fetchRUIDFromLine(line), dbLogName, dbId,lineInfo['process_name'], targetUnzipDirectory)
                 else:
                     print(f"[{time.time()}] parseAllOtherEvents: 'trace' parent directory not found for '{logFilePath}' when searching for ospFile")
         else:
@@ -355,13 +389,11 @@ def parseAllOtherEvents(logFileContent, ruidList, dbName, dbId, logFilePath, inc
         unzipPath = os.path.join(logFilePath, dbLogName)
         if os.path.exists(unzipPath):
             incident_parent_dir = unzipPath
-    breakpoint()
     if incident_parent_dir:
         incidentPath = os.path.join(incident_parent_dir, 'incident')
         print(f"[{time.time()}] parseAllOtherEvents: incident path is '{incidentPath}'")
-        breakpoint()
         if os.path.isdir(incidentPath):
-            for item in getAllIncidents(incidentPath, rmdbs, ruidList):
+            for item in getAllIncidents(incidentPath, rmdbs, ruidList, targetUnzipDirectory):
                 if 'mainFile' in item:
                     item['mainFile'] = os.path.join(os.path.join(incident_parent_dir,'trace'), os.path.basename(item['mainFile']))
                 incidents.append(item)
@@ -373,7 +405,7 @@ def parseAllOtherEvents(logFileContent, ruidList, dbName, dbId, logFilePath, inc
             
 
 
-def parseHistory(allRUIDs, rmdbs, logFiles, dbIds):
+def parseHistory(allRUIDs, rmdbs, logFiles, dbIds, directoryName):
     history = {ruid: {rmdb['shardGroup']: [] for rmdb in rmdbs} for ruid in allRUIDs}
     incidents = list()
     dbLogsCache = dict()
@@ -425,8 +457,7 @@ def parseHistory(allRUIDs, rmdbs, logFiles, dbIds):
         if not logFilePath:
             continue
 
-        breakpoint()
-        otherEvents = parseAllOtherEvents(logFileContents, allRUIDs, dbName, dbIds[dbName], logFilePath, incidents, rmdbs)
+        otherEvents = parseAllOtherEvents(logFileContents, allRUIDs, dbName, dbIds[dbName], logFilePath, incidents, rmdbs, directoryName)
         print(f"[{time.time()}] Parsed other events for {dbName}: {otherEvents}")
 
         for ruid in allRUIDs:
@@ -450,15 +481,38 @@ def parseHistory(allRUIDs, rmdbs, logFiles, dbIds):
     print(f"[{time.time()}] --- Finished parseHistory ---")
     return history, incidents
 
-def parseWatsonLog(logDirectory):
+def checkFile(filePath, unzipTo):
+    if os.path.exists(filePath):
+        dest_path = os.path.join(unzipTo, os.path.basename(filePath))
+        try:
+            shutil.copy2(filePath, dest_path)
+            return dest_path
+        except PermissionError:
+            print(f"Permission denied to copy {filePath}")
+            return filePath
+    elif os.path.exists(filePath + ".gz"):
+        gz_path = filePath + ".gz"
+        dest_path = os.path.join(unzipTo, os.path.basename(filePath))
+        with gzip.open(gz_path, 'rb') as f_in:
+            with open(dest_path, 'wb') as f_out:
+                shutil.copyfileobj(f_in, f_out)
+        return dest_path
+    else:
+        return None
+
+def parseWatsonLog(logDirectory, unzipTo):
     watsonLogPath = os.path.join(logDirectory, 'watson.log')
-    if not os.path.exists(watsonLogPath):
+    watsonExists = os.path.exists(watsonLogPath)
+    breakpoint()
+
+    if not watsonExists:
         return []
 
     errors = []
     with open(watsonLogPath, 'r', encoding='utf-8', errors='ignore') as f:
-        for line in f:
+        for line in f.readlines():
             if "DIF" in line and "FAIL" in line and "ERROR" in line:
+                breakpoint()
                 line_parts = line.split()
                 dif_file = None
                 for part in line_parts:
@@ -469,9 +523,9 @@ def parseWatsonLog(logDirectory):
                 if dif_file:
                     base_name = dif_file.split('.dif')[0]
                     log_file = base_name + ".log"
-                    
+                    breakpoint()
                     errors.append({
-                        "dif_file": os.path.join(logDirectory, dif_file),
-                        "log_file": os.path.join(logDirectory, log_file)
+                        "dif_file": checkFile(os.path.join(logDirectory, dif_file), unzipTo),
+                        "log_file": checkFile(os.path.join(logDirectory, log_file), unzipTo)
                     })
     return errors
