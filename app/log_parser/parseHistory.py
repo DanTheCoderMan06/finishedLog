@@ -365,7 +365,7 @@ def parseAllOtherEvents(logFileContent, ruidList, dbName, dbId, logFilePath, inc
             if lineInfo['code'] == 0:
                 continue
             
-            if 'ospid' in lineInfo:
+            if 'ospid' in lineInfo and 'process_name' in lineInfo:
                 trace_parent_dir = findParentWithSubdir('trace', logFilePath)
                 if not trace_parent_dir:
                     unzipPath = os.path.join(logFilePath, dbLogName)
