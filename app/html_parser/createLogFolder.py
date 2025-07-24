@@ -181,17 +181,27 @@ def createLogFolder(results, results_dir):
         
         watson_tbody = soup.new_tag('tbody')
         for item in results['watson_errors']:
+
+            difFile = item['dif_file']
+            logFile = item['log_file']
+            
+            if "file:///" not in item['dif_file']:
+                difFile = "file:///" + difFile
+
+            if "file:///" not in item['log_file']:
+                logFile = "file:///" + logFile
+
             new_row = soup.new_tag('tr')
             
-            dif_cell = soup.new_tag('td')
-            dif_link = soup.new_tag('a', attrs={'href': './' + os.path.basename(item['dif_file'])})
+            dif_cell = soup.new_tag('td')        
+            dif_link = soup.new_tag('a', attrs={'href': difFile})
             dif_link.string = os.path.basename(item['dif_file'])
             dif_cell.append(dif_link)
             new_row.append(dif_cell)
 
             log_cell = soup.new_tag('td')
             if os.path.exists(item['log_file']):
-                log_link = soup.new_tag('a', attrs={'href': './' + os.path.basename(item['log_file'])})
+                log_link = soup.new_tag('a', attrs={'href':  logFile})
                 log_link.string = os.path.basename(item['log_file'])
                 log_cell.append(log_link)
             else:

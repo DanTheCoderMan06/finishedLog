@@ -483,13 +483,8 @@ def parseHistory(allRUIDs, rmdbs, logFiles, dbIds, directoryName):
 
 def checkFile(filePath, unzipTo):
     if os.path.exists(filePath):
-        dest_path = os.path.join(unzipTo, os.path.basename(filePath))
-        try:
-            shutil.copy2(filePath, dest_path)
-            return dest_path
-        except PermissionError:
-            print(f"Permission denied to copy {filePath}")
-            return filePath
+        breakpoint()
+        return filePath
     elif os.path.exists(filePath + ".gz"):
         gz_path = filePath + ".gz"
         dest_path = os.path.join(unzipTo, os.path.basename(filePath))
@@ -503,7 +498,6 @@ def checkFile(filePath, unzipTo):
 def parseWatsonLog(logDirectory, unzipTo):
     watsonLogPath = os.path.join(logDirectory, 'watson.log')
     watsonExists = os.path.exists(watsonLogPath)
-    breakpoint()
 
     if not watsonExists:
         return []
@@ -511,8 +505,7 @@ def parseWatsonLog(logDirectory, unzipTo):
     errors = []
     with open(watsonLogPath, 'r', encoding='utf-8', errors='ignore') as f:
         for line in f.readlines():
-            if "DIF" in line and "FAIL" in line and "ERROR" in line:
-                breakpoint()
+            if "DIF" in line and "FAIL" in line and ".log" in line:
                 line_parts = line.split()
                 dif_file = None
                 for part in line_parts:
@@ -523,9 +516,10 @@ def parseWatsonLog(logDirectory, unzipTo):
                 if dif_file:
                     base_name = dif_file.split('.dif')[0]
                     log_file = base_name + ".log"
-                    breakpoint()
                     errors.append({
-                        "dif_file": checkFile(os.path.join(logDirectory, dif_file), unzipTo),
-                        "log_file": checkFile(os.path.join(logDirectory, log_file), unzipTo)
+                        "dif_file": os.path.normpath(checkFile(os.path.join(logDirectory, dif_file), unzipTo)),
+                        "log_file": os.path.normpath(checkFile(os.path.join(logDirectory, log_file), unzipTo))
                     })
+    breakpoint()
+    
     return errors
