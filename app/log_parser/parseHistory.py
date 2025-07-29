@@ -32,7 +32,7 @@ def rmdbExists(rmdbList, target):
 
 def logExists(rmdbList, target):
     for rmdb in rmdbList:
-        if rmdb['logFolderName'] == target:
+        if target in rmdb['logFolderNames']:
             return True
     return False
 
@@ -339,7 +339,7 @@ def getAllIncidents(incidentPath, rmdbs, ruids, targetUnzip):
 def getLogName(rmdbList, target):
     for rmdb in rmdbList:
         if rmdb['dbName'] == target:
-            return rmdb['logFolderName']
+            return rmdb['logFolderNames']
         
 
 # Parses all other events from a log file.
@@ -353,7 +353,7 @@ def getLogName(rmdbList, target):
 # Returns:
 #     dict: A dictionary where the keys are RUIDs and the values are lists of events.
 def parseAllOtherEvents(logFileContent, ruidList, dbName, dbId, logFilePath, incidents, rmdbs, targetUnzipDirectory):
-    dbLogName = getLogName(rmdbs, dbName)
+    dbLogNames = getLogName(rmdbs, dbName)
     result = {ruid: [] for ruid in ruidList}
     for i in range(len(logFileContent)):
         line = logFileContent[i]
@@ -367,11 +367,13 @@ def parseAllOtherEvents(logFileContent, ruidList, dbName, dbId, logFilePath, inc
             if 'ospid' in lineInfo and 'process_name' in lineInfo:
                 trace_parent_dir = findParentWithSubdir('trace', logFilePath)
                 if not trace_parent_dir:
-                    unzipPath = os.path.join(logFilePath, dbLogName)
-                    if os.path.exists(unzipPath):
-                        trace_parent_dir = unzipPath
+                    for dbLogName in dbLogNames:
+                        unzipPath = os.path.join(logFilePath, dbLogName)
+                        if os.path.exists(unzipPath):
+                            trace_parent_dir = unzipPath
+                            break
                 if trace_parent_dir:
-                    lineInfo['ospFile'] = findOspFile(os.path.join(trace_parent_dir, 'trace'), lineInfo['ospid'], fetchRUIDFromLine(line), dbLogName, dbId,lineInfo['process_name'], targetUnzipDirectory)
+                    lineInfo['ospFile'] = findOspFile(os.path.join(trace_parent_dir, 'trace'), lineInfo['ospid'], fetchRUIDFromLine(line), dbLogNames[0], dbId,lineInfo['process_name'], targetUnzipDirectory)
                 else:
                     print(f"[{time.time()}] parseAllOtherEvents: 'trace' parent directory not found for '{logFilePath}' when searching for ospFile")
         else:
@@ -385,9 +387,11 @@ def parseAllOtherEvents(logFileContent, ruidList, dbName, dbId, logFilePath, inc
     print(f"[{time.time()}] parseAllOtherEvents: searching for incidents for log file '{logFilePath}'")
     incident_parent_dir = findParentWithSubdir('trace', logFilePath)
     if not incident_parent_dir:
-        unzipPath = os.path.join(logFilePath, dbLogName)
-        if os.path.exists(unzipPath):
-            incident_parent_dir = unzipPath
+        for dbLogName in dbLogNames:
+            unzipPath = os.path.join(logFilePath, dbLogName)
+            if os.path.exists(unzipPath):
+                incident_parent_dir = unzipPath
+                break
     if incident_parent_dir:
         incidentPath = os.path.join(incident_parent_dir, 'incident')
         print(f"[{time.time()}] parseAllOtherEvents: incident path is '{incidentPath}'")
@@ -419,23 +423,27 @@ def parseHistory(allRUIDs, rmdbs, logFiles, dbIds, directoryName):
     for logFile in logFiles:
         print(f"[{time.time()}] Processing log file: {logFile['logFile']} for db: {logFile['dbName']}")
         try:
+            if logFile['dbName'] not in dbLogsCache:
+                dbLogsCache[logFile['dbName']] = []
             with open(logFile['logFile'], 'r', encoding='utf-8', errors='ignore') as fp:
-                dbLogsCache[logFile['dbName']] = fp.readlines()
-            parsed_log = parseLogFile(dbLogsCache[logFile['dbName']], logFile['dbName'], dbIds[logFile['dbName']])
-            print(f"[{time.time()}] Parsed leadership changes for {logFile['dbName']}: {parsed_log}")
-            for ruid, events in parsed_log.items():
-                if ruid in history:
-                    for rmdb in rmdbs:
-                        if rmdb['dbName'] == logFile['dbName']:
-                            for event in events:
-                                if event not in history[ruid][rmdb['shardGroup']]:
-                                    history[ruid][rmdb['shardGroup']].append(event)
-                            if rmdb['shardGroup'] not in shardGroups:
-                                shardGroups[rmdb['shardGroup']] = list()
-                            shardGroups[rmdb['shardGroup']].append(rmdb['dbName'])
+                dbLogsCache[logFile['dbName']].extend(fp.readlines())
         except Exception as e:
             print(f"Error processing log file {logFile['logFile']}: {e}")
             continue
+
+    for dbName, logFileContents in dbLogsCache.items():
+        parsed_log = parseLogFile(logFileContents, dbName, dbIds[dbName])
+        print(f"[{time.time()}] Parsed leadership changes for {dbName}: {parsed_log}")
+        for ruid, events in parsed_log.items():
+            if ruid in history:
+                for rmdb in rmdbs:
+                    if rmdb['dbName'] == dbName:
+                        for event in events:
+                            if event not in history[ruid][rmdb['shardGroup']]:
+                                history[ruid][rmdb['shardGroup']].append(event)
+                        if rmdb['shardGroup'] not in shardGroups:
+                            shardGroups[rmdb['shardGroup']] = list()
+                        shardGroups[rmdb['shardGroup']].append(rmdb['dbName'])
 
     for ruid in history:
         for shard_group in history[ruid]:

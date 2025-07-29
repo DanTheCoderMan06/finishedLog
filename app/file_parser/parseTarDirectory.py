@@ -24,46 +24,46 @@ def openTarDirectory(filePath, destination):
     except Exception as e:
         print("An unexpected error occurred: {}".format(e))
 
-# Finds the first log file in a directory with more than MIN_LINES_FOR_LOG lines.
-# Args:
-#     directory (str): The directory to search.
-# Returns:
-#     str: The path to the log file.
-# Raises:
-#     FileNotFoundError: If no log file is found.
-def findLogFile(directory, destination_dir):
-    targetDir = ""
-    with os.scandir(directory) as entries:
-        for item in entries:
-            print("Scanning: ", item.name)
-            if item.is_dir():
-                if AIME_STRING in item.name:
-                    targetDir = item.name
-                    break
-    
-    log_path = os.path.join(directory, targetDir, 'log', f"debug_{targetDir}.log")
-    gz_log_path = log_path + ".gz"
+def findMainDirs(directory):
+    dirs = []
+    try:
+        with os.scandir(directory) as entries:
+            for item in entries:
+                if item.is_dir() and AIME_STRING in item.name:
+                    dirs.append(item.name)
+    except FileNotFoundError:
+        print(f"Directory not found for findMainDirs: {directory}")
+    return dirs
 
-    if os.path.exists(gz_log_path):
-        os.makedirs(destination_dir, exist_ok=True)
-        unzipped_log_filename = f"debug_{targetDir}.log"
+def findLogFilesInDir(directory, destination_dir):
+    log_files = []
+    aime_dirs = findMainDirs(directory)
+    for aime_dir in aime_dirs:
+        log_path = os.path.join(directory, aime_dir, 'log', f"debug_{aime_dir}.log")
+        gz_log_path = log_path + ".gz"
+
+        unzipped_log_filename = f"{os.path.basename(directory)}_{aime_dir}_debug.log"
         unzipped_log_path = os.path.join(destination_dir, unzipped_log_filename)
-        with gzip.open(gz_log_path, 'rb') as f_in:
-            with open(unzipped_log_path, 'wb') as f_out:
-                shutil.copyfileobj(f_in, f_out)
-        print(f"Unzipped {gz_log_path} to {unzipped_log_path}")
-        return unzipped_log_path
-    
-    print(log_path)
-    return log_path
 
-def findMainDir(directory):
-    with os.scandir(directory) as entries:
-        for item in entries:
-            print("Scanning: ", item.name)
-            if item.is_dir():
-                if AIME_STRING in item.name:
-                    return item.name
+        found_log_path = None
+        if os.path.exists(gz_log_path):
+            os.makedirs(destination_dir, exist_ok=True)
+            if not os.path.exists(unzipped_log_path):
+                with gzip.open(gz_log_path, 'rb') as f_in:
+                    with open(unzipped_log_path, 'wb') as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+                print(f"Unzipped {gz_log_path} to {unzipped_log_path}")
+            found_log_path = unzipped_log_path
+        elif os.path.exists(log_path):
+            os.makedirs(destination_dir, exist_ok=True)
+            if not os.path.exists(unzipped_log_path):
+                 shutil.copy(log_path, unzipped_log_path)
+            found_log_path = unzipped_log_path
+
+        if found_log_path:
+            log_files.append(found_log_path)
+
+    return log_files
 
 # Finds the log/diag folder in a directory.
 # Args:
@@ -79,5 +79,3 @@ def findLogFolder(directory):
                 if entry.name == 'diag':
                     return entry.name
     raise FileNotFoundError
-
-    

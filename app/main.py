@@ -13,7 +13,6 @@ import shutil
 
 
 
-
 # Parses the log files in a given directory and generates an HTML report.
 # Args:
 #     rmdbsDirectory (str): The name of the directory containing the log files.
@@ -85,7 +84,7 @@ def parseLog(logDirectory, directoryName):
 
             shardGroups.add(shardGroup)
             dbIds[rmdb] = dbCounter
-            rmdbs.append({'dbName': rmdb, 'dbID': dbCounter, 'shardGroup': shardGroup, 'logFolderName' : file_parser.findMainDir(os.path.join(extractionDirectory, 'diag', 'rdbms', rmdb))})
+            rmdbs.append({'dbName': rmdb, 'dbID': dbCounter, 'shardGroup': shardGroup, 'logFolderNames' : file_parser.findMainDirs(os.path.join(extractionDirectory, 'diag', 'rdbms', rmdb))})
             dbCounter += 10
 
     print("SHARD GROUPS: ", shardGroups)
@@ -95,10 +94,10 @@ def parseLog(logDirectory, directoryName):
     for rmdb in rmdbs:
         rmdbName = rmdb['dbName']
         targetLog = os.path.join(extractionDirectory, 'diag', 'rdbms', rmdbName)
-        print(file_parser.findLogFile(targetLog, report_dir))
         try:
-            unzipped_log_file = file_parser.findLogFile(targetLog, report_dir)
-            logFiles.append({'dbName': rmdbName, 'logFile': unzipped_log_file, 'originalLogFile': targetLog})
+            unzipped_log_files = file_parser.findLogFilesInDir(targetLog, report_dir)
+            for log_file in unzipped_log_files:
+                logFiles.append({'dbName': rmdbName, 'logFile': log_file, 'originalLogFile': targetLog})
         except Exception as e:
             print("Error: Failed to find log file for {}, {}".format(rmdbName, type(e).__name__))
 
@@ -106,7 +105,8 @@ def parseLog(logDirectory, directoryName):
         try:
             with open(logFile['logFile'], 'r', encoding='utf-8', errors='ignore') as file:
                 logLines = file.readlines()
-            ruidLists[logFile['dbName']] = set()
+            if logFile['dbName'] not in ruidLists:
+                ruidLists[logFile['dbName']] = set()
             for i in range(len(logLines)):
                 ruID = log_parser.parseRUIDLine(logLines[i])
                 if ruID > 0:

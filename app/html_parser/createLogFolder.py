@@ -147,7 +147,7 @@ def createLogFolder(results, results_dir):
             new_row.append(db_id_cell)
 
             db_log_folder_name_cell = soup.new_tag('td')
-            db_log_folder_name_cell.string = item.get('dbLogFolderName', 'N/A')
+            db_log_folder_name_cell.string = ", ".join(item.get('dbLogFolderName', ['N/A']))
             new_row.append(db_log_folder_name_cell)
             
             incident_tbody.append(new_row)
