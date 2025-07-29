@@ -5,7 +5,6 @@ import bisect
 import time
 import gzip
 import shutil
-import pdb
 
 ROLE_CHANGE_STRING = "SNR role change "
 RU_ID_STRING = "RU_ID"
@@ -483,7 +482,6 @@ def parseHistory(allRUIDs, rmdbs, logFiles, dbIds, directoryName):
 
 def checkFile(filePath, unzipTo):
     if os.path.exists(filePath):
-        breakpoint()
         return filePath
     elif os.path.exists(filePath + ".gz"):
         gz_path = filePath + ".gz"
@@ -520,6 +518,5 @@ def parseWatsonLog(logDirectory, unzipTo):
                         "dif_file": os.path.normpath(checkFile(os.path.join(logDirectory, dif_file), unzipTo)),
                         "log_file": os.path.normpath(checkFile(os.path.join(logDirectory, log_file), unzipTo))
                     })
-    breakpoint()
     
     return errors

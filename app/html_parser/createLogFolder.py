@@ -2,7 +2,6 @@ import bs4
 import os
 import datetime
 import uuid
-import pdb
 import gzip
 import shutil
 

@@ -30,27 +30,40 @@ def parseLog(logDirectory, directoryName):
     dbIds = {}
 
     fileName = "sdbdeploy_gdsctl.lst"
+    gdsctl_path = os.path.join(directoryName, fileName)
 
-    print("Found gdsctl log file!")
+    if not os.path.exists(gdsctl_path) and not os.path.exists(gdsctl_path + ".gz"):
+        print(f"'{fileName}' not found. Scanning directory for 'gdsctl.lst' files...")
+        found_gdsctl_file = None
+        for f in os.listdir(directoryName):
+            if "gdsctl.lst" in f:
+                found_gdsctl_file = f
+                break
+        
+        if found_gdsctl_file:
+            fileName = found_gdsctl_file
+            print(f"Found gdsctl log file: {fileName}")
+        else:
+            print(f"Error: No gdsctl log file found in '{directoryName}'.")
+            return
+    else:
+        print("Found gdsctl log file!")
 
     try:
-        with open(os.path.join(directoryName, fileName), 'r', encoding='utf-8', errors='ignore') as file:
+        filepath = os.path.join(directoryName, fileName)
+        if filepath.endswith('.gz'):
+            unzipped_path = filepath[:-3]
+            with gzip.open(filepath, 'rb') as f_in:
+                with open(unzipped_path, 'wb') as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+            print(f"Unzipped {filepath} to {unzipped_path}")
+            filepath = unzipped_path
+        
+        with open(filepath, 'r', encoding='utf-8', errors='ignore') as file:
             logFileLines = file.readlines()
-    except FileNotFoundError:
-       gz_path = os.path.join(directoryName, fileName + ".gz")
-       if os.path.exists(gz_path):
-           unzipped_path = os.path.join(directoryName, fileName)
-           with gzip.open(gz_path, 'rb') as f_in:
-               with open(unzipped_path, 'wb') as f_out:
-                   shutil.copyfileobj(f_in, f_out)
-           print(f"Unzipped {gz_path} to {unzipped_path}")
-           with open(unzipped_path, 'r', encoding='utf-8', errors='ignore') as file:
-               logFileLines = file.readlines()
-       else:
-           print("Error: The file '{}' could not be found.".format(fileName))
-           return
-    except OSError:
-        print("Error: The file '{}' could not be opened.".format(fileName))
+
+    except (FileNotFoundError, OSError) as e:
+        print(f"Error: Could not open or read file '{fileName}': {e}")
         return
 
     if not logFileLines:
