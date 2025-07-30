@@ -12,14 +12,16 @@ def batch_parse(report_dir, start_dir, max_files=None):
 
     processed_files = 0
     dir_list = os.listdir(start_dir)
+    num_dirs = sum(1 for item in dir_list if os.path.isdir(os.path.join(start_dir, item)))
     try:
-        with tqdm(total=len(dir_list), desc="Processing directories") as pbar:
+        with tqdm(total=num_dirs, desc="Processing directories") as pbar:
             for dir_name in dir_list:
                 if max_files is not None and processed_files >= max_files:
                     print(f"Reached file limit of {max_files}. Exiting.")
                     break
                 full_path = os.path.join(start_dir, dir_name)
                 if os.path.isdir(full_path):
+                    pbar.update(1)
                     diag_path = os.path.join(full_path, 'diag')
                     gdsctl_path = os.path.join(full_path, "sdbdeploy_gdsctl.lst")
                     if not os.path.exists(gdsctl_path) and not any("gdsctl.lst" in f for f in os.listdir(full_path)):
@@ -39,7 +41,6 @@ def batch_parse(report_dir, start_dir, max_files=None):
                                 f.write(f"  -> Failed: {e}\n")
                                 f.write(traceback.format_exc())
                                 f.write("\n")
-                pbar.update(1)
     except KeyboardInterrupt:
         print("\nInterrupted by user. Stopping batch processing.")
 
