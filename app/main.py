@@ -3,7 +3,6 @@ import sys
 import log_parser
 import html_parser
 import file_parser
-import datetime
 import gzip
 import shutil
 

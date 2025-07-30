@@ -2,6 +2,7 @@
 # return: list[dict] -> Found rmdbs
 ADDSHARD_PREFIX = "Command name: add shard "
 SHARDGROUP_PREFIX = "shardgroup :"
+SHARDSPACE_PREFIX = "shardspace :"
 DBNAME_PREFIX = "cdb : "
 
 # Fetches shard group and database name lines from a list of file lines.
@@ -12,11 +13,15 @@ DBNAME_PREFIX = "cdb : "
 #     list: A list containing the shard group and database name lines, or an empty list if not found.
 def fetchAddShardInfo(fileLines, start):
     targetLines = ["NULL", "NULL"]
+    limit = 0
     try:
         while "NULL" in targetLines:
             start += 1
+            limit += 1
+            if limit > 10:
+                raise IndexError
             nextLine = fileLines[start]
-            if SHARDGROUP_PREFIX in nextLine:
+            if SHARDGROUP_PREFIX in nextLine or SHARDSPACE_PREFIX in nextLine:
                 targetLines[0] = nextLine
             if DBNAME_PREFIX in nextLine:
                 targetLines[1] = nextLine

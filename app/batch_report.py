@@ -1,6 +1,7 @@
 import os
 import sys
 import main
+import elevate
 import traceback
 from tqdm import tqdm
 
@@ -42,7 +43,7 @@ def batch_parse(report_dir, start_dir, max_files=None):
 if __name__ == "__main__":
     if len(sys.argv) < 3:
         raise ValueError("Usage: python batch_report.py <report_directory> <start_directory> [max_files]")
-    
+    elevate.elevate()
     report_directory = sys.argv[1]
     start_directory = sys.argv[2]
     max_files_arg = None
@@ -51,5 +52,6 @@ if __name__ == "__main__":
             max_files_arg = int(sys.argv[3])
         except ValueError:
             raise ValueError("max_files must be an integer.")
+        
 
     batch_parse(report_directory, start_directory, max_files_arg)
