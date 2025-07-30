@@ -99,7 +99,7 @@ def createLogFolder(results, results_dir):
                     shutil.copy2(path, dest_path)
                     path = dest_path
                 except PermissionError:
-                    print(f"Permission denied to copy {path}")
+                    raise PermissionError(f"Permission denied to copy {path}")
             elif os.path.exists(path + ".gz"):
                 gz_path = path + ".gz"
                 unzipped_path = os.path.join(logDirectory, os.path.basename(path))
@@ -123,7 +123,7 @@ def createLogFolder(results, results_dir):
                         shutil.copy2(main_file_path, dest_path)
                         main_file_path = dest_path
                     except PermissionError:
-                        print(f"Permission denied to copy {main_file_path}")
+                        raise PermissionError(f"Permission denied to copy {main_file_path}")
                 elif os.path.exists(main_file_path + ".gz"):
                     gz_path = main_file_path + ".gz"
                     unzipped_path = os.path.join(logDirectory, os.path.basename(main_file_path))

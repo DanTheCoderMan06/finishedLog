@@ -44,6 +44,17 @@
                 "./scratch/reports",
                 "C:\\Users\\danii\\OneDrive\\Documents\\oracleStuff\\mytar3\\lrgdbcongsmshsnrcr17b"
             ]
-        }
+        },
+        {
+            "name": "Python: Batch Test",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/app/batch_report.py",
+            "console": "integratedTerminal",
+            "args": [
+                "./scratch/reports",
+                "C:\\Users\\danii\\OneDrive\\Documents\\oracleStuff\\mytar3"
+            ]
+        },
     ]
 }

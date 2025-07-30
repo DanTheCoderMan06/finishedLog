@@ -28,6 +28,13 @@ def parseLog(logDirectory, directoryName):
     allRUIDs = set()
     dbIds = {}
 
+    if directoryName == '.':
+        dir_base_name = os.path.basename(os.getcwd())
+    else:
+        dir_base_name = os.path.basename(os.path.normpath(directoryName))
+    
+    report_dir = os.path.join(logDirectory, dir_base_name)
+
     fileName = "sdbdeploy_gdsctl.lst"
     gdsctl_path = os.path.join(directoryName, fileName)
 
@@ -43,8 +50,7 @@ def parseLog(logDirectory, directoryName):
             fileName = found_gdsctl_file
             print(f"Found gdsctl log file: {fileName}")
         else:
-            print(f"Error: No gdsctl log file found in '{directoryName}'.")
-            return
+            raise FileNotFoundError(f"Error: No gdsctl log file found in '{directoryName}'.")
     else:
         print("Found gdsctl log file!")
 
@@ -62,12 +68,10 @@ def parseLog(logDirectory, directoryName):
             logFileLines = file.readlines()
 
     except (FileNotFoundError, OSError) as e:
-        print(f"Error: Could not open or read file '{fileName}': {e}")
-        return
+        raise FileNotFoundError(f"Error: Could not open or read file '{fileName}': {e}")
 
     if not logFileLines:
-        print("Error: No lines in the log file  file '{}'!".format(fileName))
-        return
+        raise ValueError("Error: No lines in the log file  file '{}'!".format(fileName))
     
     extractionDirectory = directoryName
 
@@ -75,12 +79,10 @@ def parseLog(logDirectory, directoryName):
         if log_parser.ADDSHARD_PREFIX in logFileLines[i]:
             targetLines = log_parser.fetchAddShardInfo(logFileLines, i)
             if len(targetLines) < 2:
-                print("Error from add shard command on line {}, failed to fetch db + shardgroup info lines!".format(i + 1))
-                return
+                raise ValueError("Error from add shard command on line {}, failed to fetch db + shardgroup info lines!".format(i + 1))
             shardGroup, rmdb = log_parser.parseAddShard(targetLines)
             if shardGroup == "NULL":
-                print("Error from add shard command on line {}, failed to parse db + shardgroup info lines!".format(i + 1))
-                return
+                raise ValueError("Error from add shard command on line {}, failed to parse db + shardgroup info lines!".format(i + 1))
 
             shardGroups.add(shardGroup)
             dbIds[rmdb] = dbCounter
@@ -90,7 +92,6 @@ def parseLog(logDirectory, directoryName):
     print("SHARD GROUPS: ", shardGroups)
     print("RMDBS", rmdbs)
 
-    report_dir = os.path.join(logDirectory, os.path.basename(directoryName))
     for rmdb in rmdbs:
         rmdbName = rmdb['dbName']
         targetLog = os.path.join(extractionDirectory, 'diag', 'rdbms', rmdbName)
@@ -99,7 +100,7 @@ def parseLog(logDirectory, directoryName):
             for log_file in unzipped_log_files:
                 logFiles.append({'dbName': rmdbName, 'logFile': log_file, 'originalLogFile': targetLog})
         except Exception as e:
-            print("Error: Failed to find log file for {}, {}".format(rmdbName, type(e).__name__))
+            raise FileNotFoundError("Error: Failed to find log file for {}, {}".format(rmdbName, type(e).__name__))
 
     for logFile in logFiles:
         try:
@@ -112,8 +113,7 @@ def parseLog(logDirectory, directoryName):
                 if ruID > 0:
                     ruidLists[logFile['dbName']].add(ruID)
         except Exception as e:
-            print("Error: Failed to parse log file for {}, {}".format(logFile['dbName'], type(e).__name__))
-            return
+            raise ValueError("Error: Failed to parse log file for {}, {}".format(logFile['dbName'], type(e).__name__))
 
         print("RUIDS for {}".format(logFile['dbName']), ruidLists[logFile['dbName']])
 
@@ -136,12 +136,12 @@ def parseLog(logDirectory, directoryName):
 
     print("Creating Log Folder")
 
-    html_parser.createLogFolder(logContents, os.path.join(logDirectory, os.path.basename(directoryName)))
+    html_parser.createLogFolder(logContents, report_dir)
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python main.py <report_directory> <target_directory(Optional)>")
+        raise ValueError("Usage: python main.py <report_directory> <target_directory(Optional)>")
     else:
         directoryName = sys.argv[1]
         rmdbsDirectory = None
