@@ -12,33 +12,30 @@ def batch_parse(report_dir, start_dir, max_files=None):
 
     processed_files = 0
     dir_list = os.listdir(start_dir)
-    num_dirs = sum(1 for item in dir_list if os.path.isdir(os.path.join(start_dir, item)))
     try:
-        with tqdm(total=num_dirs, desc="Processing directories") as pbar:
+        with tqdm(total=len(dir_list), desc="Processing directories") as pbar:
             for dir_name in dir_list:
                 if max_files is not None and processed_files >= max_files:
                     print(f"Reached file limit of {max_files}. Exiting.")
                     break
                 full_path = os.path.join(start_dir, dir_name)
                 if os.path.isdir(full_path):
-                    pbar.update(1)
                     diag_path = os.path.join(full_path, 'diag')
                     if os.path.exists(diag_path) and os.path.isdir(diag_path):
+                        with open(results_file, 'a') as f:
+                            f.write(f"Processing: {full_path}\n")
                         try:
                             main.parseLog(report_dir, full_path)
                             processed_files += 1
                             with open(results_file, 'a') as f:
-                                f.write(f"Processing: {full_path}\n")
                                 f.write(f"  -> Success\n")
                         except Exception as e:
-                            tb_str = traceback.format_exc()
-                            if "No gdsctl log file found" in str(e):
-                                continue
-                            with open(results_file, 'a') as f:
-                                f.write(f"Processing: {full_path}\n")
-                                f.write(f"  -> Failed: {e}\n")
-                                f.write(tb_str)
-                                f.write("\n")
+                            if not "No gdsctl log file" in str(e):
+                                with open(results_file, 'a') as f:
+                                    f.write(f"  -> Failed: {e}\n")
+                                    f.write(traceback.format_exc())
+                                    f.write("\n")
+                pbar.update(1)
     except KeyboardInterrupt:
         print("\nInterrupted by user. Stopping batch processing.")
 
