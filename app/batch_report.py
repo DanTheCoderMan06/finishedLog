@@ -23,23 +23,21 @@ def batch_parse(report_dir, start_dir, max_files=None):
                 if os.path.isdir(full_path):
                     pbar.update(1)
                     diag_path = os.path.join(full_path, 'diag')
-                    gdsctl_path = os.path.join(full_path, "sdbdeploy_gdsctl.lst")
-                    if not os.path.exists(gdsctl_path) and not any("gdsctl.lst" in f for f in os.listdir(full_path)):
-                        with open(results_file, 'a') as f:
-                            f.write(f"Skipping: {full_path} (no gdsctl.lst file)\n")
-                        continue
                     if os.path.exists(diag_path) and os.path.isdir(diag_path):
-                        with open(results_file, 'a') as f:
-                            f.write(f"Processing: {full_path}\n")
                         try:
                             main.parseLog(report_dir, full_path)
                             processed_files += 1
                             with open(results_file, 'a') as f:
+                                f.write(f"Processing: {full_path}\n")
                                 f.write(f"  -> Success\n")
                         except Exception as e:
+                            tb_str = traceback.format_exc()
+                            if "No gdsctl log file found" in str(e):
+                                continue
                             with open(results_file, 'a') as f:
+                                f.write(f"Processing: {full_path}\n")
                                 f.write(f"  -> Failed: {e}\n")
-                                f.write(traceback.format_exc())
+                                f.write(tb_str)
                                 f.write("\n")
     except KeyboardInterrupt:
         print("\nInterrupted by user. Stopping batch processing.")
