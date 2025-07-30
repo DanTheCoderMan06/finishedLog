@@ -21,6 +21,11 @@ def batch_parse(report_dir, start_dir, max_files=None):
                 full_path = os.path.join(start_dir, dir_name)
                 if os.path.isdir(full_path):
                     diag_path = os.path.join(full_path, 'diag')
+                    gdsctl_path = os.path.join(full_path, "sdbdeploy_gdsctl.lst")
+                    if not os.path.exists(gdsctl_path) and not any("gdsctl.lst" in f for f in os.listdir(full_path)):
+                        with open(results_file, 'a') as f:
+                            f.write(f"Skipping: {full_path} (no gdsctl.lst file)\n")
+                        continue
                     if os.path.exists(diag_path) and os.path.isdir(diag_path):
                         with open(results_file, 'a') as f:
                             f.write(f"Processing: {full_path}\n")

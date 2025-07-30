@@ -140,13 +140,17 @@ def parseLog(logDirectory, directoryName):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        raise ValueError("Usage: python main.py <report_directory> <target_directory(Optional)>")
-    else:
-        directoryName = sys.argv[1]
-        rmdbsDirectory = None
-        if len(sys.argv) > 2:
-            rmdbsDirectory = sys.argv[2]
+    try:
+        if len(sys.argv) < 2:
+            raise ValueError("Usage: python main.py <report_directory> <target_directory(Optional)>")
         else:
-            rmdbsDirectory = '.'
-        parseLog(directoryName, rmdbsDirectory)
+            directoryName = sys.argv[1]
+            rmdbsDirectory = None
+            if len(sys.argv) > 2:
+                rmdbsDirectory = sys.argv[2]
+            else:
+                rmdbsDirectory = '.'
+            parseLog(directoryName, rmdbsDirectory)
+    except KeyboardInterrupt:
+        print("\nScript interrupted by user. Exiting...")
+        sys.exit(0)
