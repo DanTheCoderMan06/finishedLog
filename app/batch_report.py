@@ -22,16 +22,16 @@ def batch_parse(report_dir, start_dir, max_files=None):
                 if os.path.isdir(full_path):
                     diag_path = os.path.join(full_path, 'diag')
                     if os.path.exists(diag_path) and os.path.isdir(diag_path):
-                        with open(results_file, 'a') as f:
-                            f.write(f"Processing: {full_path}\n")
                         try:
                             main.parseLog(report_dir, full_path)
                             processed_files += 1
                             with open(results_file, 'a') as f:
+                                f.write(f"Processing: {full_path}\n")
                                 f.write(f"  -> Success\n")
                         except Exception as e:
                             if not "No gdsctl log file" in str(e):
                                 with open(results_file, 'a') as f:
+                                    f.write(f"Processing: {full_path}\n")
                                     f.write(f"  -> Failed: {e}\n")
                                     f.write(traceback.format_exc())
                                     f.write("\n")
