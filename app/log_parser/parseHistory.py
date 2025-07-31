@@ -143,32 +143,29 @@ def parseLogFile(logFileContent, dbName, dbId):
 
 def parseCandidateChange(lines, index):
     line = lines[index]
-    try:
-        result = dict()
-        result['type'] = "candidate"
-        lineWords = [item for item in line.split(' ') if item and not item.isspace()]
+    result = dict()
+    result['type'] = "candidate"
+    lineWords = [item for item in line.split(' ') if item and not item.isspace()]
+    
+    result['parameters'] = list()
+
+    for word in lineWords:
+        if REASON_STRING in word:
+            result['reason'] = line[line.find(word):-1]
+
+    offset = 0
+    while HEARTBEAT_PARAMETERS_STRING not in lines[index + offset]:
+        offset += 1
+        if offset > 7:
+            return result
         
-        result['parameters'] = list()
+    while not isTimeStamp(lines[index + offset]):
+        result['parameters'].append(lines[index + offset])
+        offset += 1
+        if index + offset >= len(lines) or offset > 7:
+            return result
 
-        for word in lineWords:
-            if REASON_STRING in word:
-                result['reason'] = line[line.find(word):-1]
-
-        offset = 0
-        while HEARTBEAT_PARAMETERS_STRING not in lines[index + offset]:
-            offset += 1
-            if offset > 7:
-                return result
-            
-        while not isTimeStamp(lines[index + offset]):
-            result['parameters'].append(lines[index + offset])
-            offset += 1
-            if index + offset >= len(lines) or offset > 7:
-                return result
-
-        return result
-    except IndexError:
-        raise IndexError(f"Index out of bounds on line: {line.strip()}")
+    return result
 
 def parseErrorLog(lines, index):
     line = lines[index]
@@ -396,7 +393,7 @@ def parseAllOtherEvents(logFileContent, ruidList, dbName, dbId, logFilePath, inc
         lineInfo['dbId'] = dbId
         ruid = fetchRUIDFromLine(line)
         if ruid == -1:
-            raise ValueError(f"Could not parse RUID from line: {line.strip()}")
+            continue
         result[ruid].append(lineInfo)
 
     print(f"[{time.time()}] parseAllOtherEvents: searching for incidents for log file '{logFilePath}'")
