@@ -240,7 +240,6 @@ def findOspFile(trace_dir, targetOsp, ruid, dbName, dbId, processName, targetUnz
 
    continued_path_source = os.path.join(trace_dir, continued_filename)
    normalPathExists = os.path.exists(continued_path_source)
-   breakpoint()
    if normalPathExists:
        return continued_path_source
    elif os.path.exists(continued_path_source + ".gz"):
