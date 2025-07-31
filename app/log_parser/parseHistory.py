@@ -140,29 +140,32 @@ def parseLogFile(logFileContent, dbName, dbId):
 
 def parseCandidateChange(lines, index):
     line = lines[index]
-    result = dict()
-    result['type'] = "candidate"
-    lineWords = [item for item in line.split(' ') if item and not item.isspace()]
-    
-    result['parameters'] = list()
-
-    for word in lineWords:
-        if REASON_STRING in word:
-            result['reason'] = line[line.find(word):-1]
-
-    offset = 0
-    while HEARTBEAT_PARAMETERS_STRING not in lines[index + offset]:
-        offset += 1
-        if offset > 7:
-            return result
+    try:
+        result = dict()
+        result['type'] = "candidate"
+        lineWords = [item for item in line.split(' ') if item and not item.isspace()]
         
-    while not isTimeStamp(lines[index + offset]):
-        result['parameters'].append(lines[index + offset])
-        offset += 1  
-        if offset > 7:
-            return result
+        result['parameters'] = list()
 
-    return result
+        for word in lineWords:
+            if REASON_STRING in word:
+                result['reason'] = line[line.find(word):-1]
+
+        offset = 0
+        while HEARTBEAT_PARAMETERS_STRING not in lines[index + offset]:
+            offset += 1
+            if offset > 7:
+                return result
+            
+        while not isTimeStamp(lines[index + offset]):
+            result['parameters'].append(lines[index + offset])
+            offset += 1
+            if index + offset >= len(lines) or offset > 7:
+                return result
+
+        return result
+    except IndexError:
+        raise IndexError(f"Index out of bounds on line: {line.strip()}")
 
 def parseErrorLog(lines, index):
     line = lines[index]
@@ -212,8 +215,9 @@ def findOspFile(trace_dir, targetOsp, ruid, dbName, dbId, processName, targetUnz
    if is_gzipped:
        dest_path = os.path.join(targetUnzipDirectory, mainOSPFile)
        with gzip.open(osp_path, 'rb') as f_in:
-           with open(dest_path, 'wb') as f_out:
-               shutil.copyfileobj(f_in, f_out)
+           if not os.path.exists(dest_path):
+               with open(dest_path, 'wb') as f_out:
+                   shutil.copyfileobj(f_in, f_out)
        read_path = dest_path
 
    continued_filename = ""
@@ -241,8 +245,9 @@ def findOspFile(trace_dir, targetOsp, ruid, dbName, dbId, processName, targetUnz
    elif os.path.exists(continued_path_source + ".gz"):
        continued_path_dest = os.path.join(targetUnzipDirectory, continued_filename)
        with gzip.open(continued_path_source + ".gz", 'rb') as f_in:
-           with open(continued_path_dest, 'wb') as f_out:
-               shutil.copyfileobj(f_in, f_out)
+           if not os.path.exists(continued_path_dest):
+               with open(continued_path_dest, 'wb') as f_out:
+                   shutil.copyfileobj(f_in, f_out)
        return continued_path_dest
    
    return read_path
@@ -261,8 +266,10 @@ def findIncidentFile(incident_dir, targetUnzip):
                 gz_path = os.path.join(incident_dir, item.name)
                 unzipped_path = gz_path[:-3]
                 with gzip.open(gz_path, 'rb') as f_in:
-                    with open(os.path.join(targetUnzip, os.path.basename(unzipped_path)), 'wb') as f_out:
-                        shutil.copyfileobj(f_in, f_out)
+                    dest_path = os.path.join(targetUnzip, os.path.basename(unzipped_path))
+                    if not os.path.exists(dest_path):
+                        with open(dest_path, 'wb') as f_out:
+                            shutil.copyfileobj(f_in, f_out)
                 print(f"[{time.time()}] findIncidentFile: found and unzipped '{gz_path}' to '{unzipped_path}'")
                 return unzipped_path
             elif item.name.endswith('.trc'):
@@ -281,8 +288,10 @@ def fetchFileInfo(incidentObject, targetLog, rmdbs, ruids, targetUnzip):
             gz_path = targetLog + ".gz"
             if os.path.exists(gz_path):
                 with gzip.open(gz_path, 'rb') as f_in:
-                    with open(os.path.join(targetUnzip, os.path.basename(targetLog)), 'wb') as f_out:
-                        shutil.copyfileobj(f_in, f_out)
+                    dest_path = os.path.join(targetUnzip, os.path.basename(targetLog))
+                    if not os.path.exists(dest_path):
+                        with open(dest_path, 'wb') as f_out:
+                            shutil.copyfileobj(f_in, f_out)
                 with open(targetLog, 'r', encoding='utf-8', errors='ignore') as fp:
                     lines = fp.readlines()
                 
@@ -382,7 +391,10 @@ def parseAllOtherEvents(logFileContent, ruidList, dbName, dbId, logFilePath, inc
         lineInfo['timestamp'] = logFileContent[fetchTimestampFromIndex(logFileContent, i)].strip()
         lineInfo['dbName'] = dbName
         lineInfo['dbId'] = dbId
-        result[fetchRUIDFromLine(line)].append(lineInfo)
+        ruid = fetchRUIDFromLine(line)
+        if ruid == -1:
+            raise ValueError(f"Could not parse RUID from line: {line.strip()}")
+        result[ruid].append(lineInfo)
 
     print(f"[{time.time()}] parseAllOtherEvents: searching for incidents for log file '{logFilePath}'")
     incident_parent_dir = findParentWithSubdir('trace', logFilePath)
@@ -495,8 +507,9 @@ def checkFile(filePath, unzipTo):
         gz_path = filePath + ".gz"
         dest_path = os.path.join(unzipTo, os.path.basename(filePath))
         with gzip.open(gz_path, 'rb') as f_in:
-            with open(dest_path, 'wb') as f_out:
-                shutil.copyfileobj(f_in, f_out)
+            if not os.path.exists(dest_path):
+                with open(dest_path, 'wb') as f_out:
+                    shutil.copyfileobj(f_in, f_out)
         return dest_path
     else:
         return None

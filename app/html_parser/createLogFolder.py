@@ -96,7 +96,8 @@ def createLogFolder(results, results_dir):
             if os.path.exists(path):
                 try:
                     dest_path = os.path.join(logDirectory, os.path.basename(path))
-                    shutil.copy2(path, dest_path)
+                    if not os.path.exists(dest_path):
+                        shutil.copy2(path, dest_path)
                     path = dest_path
                 except PermissionError:
                     raise PermissionError(f"Permission denied to copy {path}")
@@ -104,8 +105,9 @@ def createLogFolder(results, results_dir):
                 gz_path = path + ".gz"
                 unzipped_path = os.path.join(logDirectory, os.path.basename(path))
                 with gzip.open(gz_path, 'rb') as f_in:
-                    with open(unzipped_path, 'wb') as f_out:
-                        shutil.copyfileobj(f_in, f_out)
+                    if not os.path.exists(unzipped_path):
+                        with open(unzipped_path, 'wb') as f_out:
+                            shutil.copyfileobj(f_in, f_out)
                 path = unzipped_path
             new_row = soup.new_tag('tr')
             cell = soup.new_tag('td')
@@ -120,7 +122,8 @@ def createLogFolder(results, results_dir):
                 if os.path.exists(main_file_path):
                     try:
                         dest_path = os.path.join(logDirectory, os.path.basename(main_file_path))
-                        shutil.copy2(main_file_path, dest_path)
+                        if not os.path.exists(dest_path):
+                            shutil.copy2(main_file_path, dest_path)
                         main_file_path = dest_path
                     except PermissionError:
                         raise PermissionError(f"Permission denied to copy {main_file_path}")
@@ -128,8 +131,9 @@ def createLogFolder(results, results_dir):
                     gz_path = main_file_path + ".gz"
                     unzipped_path = os.path.join(logDirectory, os.path.basename(main_file_path))
                     with gzip.open(gz_path, 'rb') as f_in:
-                        with open(unzipped_path, 'wb') as f_out:
-                            shutil.copyfileobj(f_in, f_out)
+                        if not os.path.exists(unzipped_path):
+                            with open(unzipped_path, 'wb') as f_out:
+                                shutil.copyfileobj(f_in, f_out)
                     main_file_path = unzipped_path
                 main_file_link = soup.new_tag('a', attrs={'href': './' + os.path.basename(main_file_path)})
                 main_file_link.string = os.path.basename(main_file_path)

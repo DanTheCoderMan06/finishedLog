@@ -57,9 +57,10 @@ def parseLog(logDirectory, directoryName):
         filepath = os.path.join(directoryName, fileName)
         if filepath.endswith('.gz'):
             unzipped_path = filepath[:-3]
-            with gzip.open(filepath, 'rb') as f_in:
-                with open(unzipped_path, 'wb') as f_out:
-                    shutil.copyfileobj(f_in, f_out)
+            if not os.path.exists(unzipped_path):
+                with gzip.open(filepath, 'rb') as f_in:
+                    with open(unzipped_path, 'wb') as f_out:
+                        shutil.copyfileobj(f_in, f_out)
             print(f"Unzipped {filepath} to {unzipped_path}")
             filepath = unzipped_path
         

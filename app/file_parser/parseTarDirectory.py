@@ -50,14 +50,16 @@ def findLogFilesInDir(directory, destination_dir):
             os.makedirs(destination_dir, exist_ok=True)
             if not os.path.exists(unzipped_log_path):
                 with gzip.open(gz_log_path, 'rb') as f_in:
-                    with open(unzipped_log_path, 'wb') as f_out:
-                        shutil.copyfileobj(f_in, f_out)
+                    if not os.path.exists(unzipped_log_path):
+                        with open(unzipped_log_path, 'wb') as f_out:
+                            shutil.copyfileobj(f_in, f_out)
                 print(f"Unzipped {gz_log_path} to {unzipped_log_path}")
             found_log_path = unzipped_log_path
         elif os.path.exists(log_path):
             os.makedirs(destination_dir, exist_ok=True)
             if not os.path.exists(unzipped_log_path):
-                 shutil.copy(log_path, unzipped_log_path)
+                 if not os.path.exists(unzipped_log_path):
+                    shutil.copy(log_path, unzipped_log_path)
             found_log_path = unzipped_log_path
 
         if found_log_path:
