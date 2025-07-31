@@ -1,7 +1,6 @@
 import os
 import sys
 import main
-import elevate
 import traceback
 from tqdm import tqdm
 
@@ -16,6 +15,9 @@ def batch_parse(report_dir, start_dir, max_files=None):
     try:
         with tqdm(total=len(dir_list), desc="Processing directories") as pbar:
             for dir_name in dir_list:
+                pbar.update(1)
+                if not "snr" in dir_name:
+                    continue
                 if max_files is not None and processed_files >= max_files:
                     print(f"Reached file limit of {max_files}. Exiting.")
                     break
@@ -30,20 +32,17 @@ def batch_parse(report_dir, start_dir, max_files=None):
                                 f.write(f"Processing: {full_path}\n")
                                 f.write(f"  -> Success\n")
                         except Exception as e:
-                            if not "No gdsctl log file" in str(e):
-                                with open(results_file, 'a') as f:
-                                    f.write(f"Processing: {full_path}\n")
-                                    f.write(f"  -> Failed: {e}\n")
-                                    f.write(traceback.format_exc())
-                                    f.write("\n")
-                pbar.update(1)
+                            with open(results_file, 'a') as f:
+                                f.write(f"Processing: {full_path}\n")
+                                f.write(f"  -> Failed: {e}\n")
+                                f.write(traceback.format_exc())
+                                f.write("\n")
     except KeyboardInterrupt:
         print("\nInterrupted by user. Stopping batch processing.")
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
         raise ValueError("Usage: python batch_report.py <report_directory> <start_directory> [max_files]")
-    elevate.elevate()
     report_directory = sys.argv[1]
     start_directory = sys.argv[2]
     max_files_arg = None
