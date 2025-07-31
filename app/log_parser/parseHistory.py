@@ -8,6 +8,7 @@ import shutil
 
 ROLE_CHANGE_STRING = "SNR role change "
 RU_ID_STRING = "RU_ID"
+RU_ID_STRING_LOWER = "ru_id"
 RU_STRING = "RU"
 LOADED_STRING = "Sharding Replication "
 ROLE_CHANGE_STRING_RUID = "SNR role change RU_ID"
@@ -82,6 +83,8 @@ def fetchRUIDFromLine(line):
         lineWords = line.split(' ')
         if RU_ID_STRING in lineWords:
             ruidWordIndex = lineWords.index(RU_ID_STRING)
+        if RU_ID_STRING_LOWER in lineWords:
+            ruidWordIndex = lineWords.index(RU_ID_STRING_LOWER)
         elif RU_STRING in lineWords:
             ruidWordIndex = lineWords.index(RU_STRING)
         if ruidWordIndex == None:

@@ -24,7 +24,7 @@ def batch_parse(report_dir, start_dir, max_files=None):
                 full_path = os.path.join(start_dir, dir_name)
                 if os.path.isdir(full_path):
                     diag_path = os.path.join(full_path, 'diag')
-                    if os.path.exists(diag_path) and os.path.isdir(diag_path):
+                    if os.path.exists(diag_path) and os.path.isdir(diag_path) and os.path.exists(os.path.join(diag_path, 'rdbms')):
                         try:
                             main.parseLog(report_dir, full_path)
                             processed_files += 1
