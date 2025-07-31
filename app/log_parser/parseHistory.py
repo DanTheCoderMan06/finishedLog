@@ -524,7 +524,7 @@ def parseWatsonLog(logDirectory, unzipTo):
     errors = []
     with open(watsonLogPath, 'r', encoding='utf-8', errors='ignore') as f:
         for line in f.readlines():
-            if "DIF" in line and "FAIL" in line and ".log" in line:
+            if "DIF" in line and "FAIL" in line and ".dif" in line:
                 line_parts = line.split()
                 dif_file = None
                 for part in line_parts:
