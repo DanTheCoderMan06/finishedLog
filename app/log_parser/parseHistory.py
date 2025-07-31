@@ -239,8 +239,9 @@ def findOspFile(trace_dir, targetOsp, ruid, dbName, dbId, processName, targetUnz
        return read_path
 
    continued_path_source = os.path.join(trace_dir, continued_filename)
-   
-   if os.path.exists(continued_path_source):
+   normalPathExists = os.path.exists(continued_path_source)
+   breakpoint()
+   if normalPathExists:
        return continued_path_source
    elif os.path.exists(continued_path_source + ".gz"):
        continued_path_dest = os.path.join(targetUnzipDirectory, continued_filename)

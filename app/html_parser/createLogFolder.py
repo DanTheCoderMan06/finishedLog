@@ -319,7 +319,12 @@ def createLogFolder(results, results_dir):
 
                     ts_cell = soup.new_tag('td')
                     if 'ospFile' in history_item and history_item['ospFile']:
-                        error_file = soup.new_tag('a', attrs={'href': './' + os.path.basename(history_item['ospFile'])})
+                        osp_path = history_item['ospFile']
+                        if osp_path.endswith('.gz'):
+                            link_path = './' + os.path.basename(osp_path[:-3])
+                        else:
+                            link_path = 'file:///' + os.path.abspath(osp_path)
+                        error_file = soup.new_tag('a', attrs={'href': link_path})
                         error_file.string = history_item['timestamp'].split('+')[0]
                         ts_cell.append(error_file)
                     else:
