@@ -1,17 +1,22 @@
 import os
 import sys
+import shutil
 import main
 import traceback
 from tqdm import tqdm
 
 def batch_parse(report_dir, start_dir, max_files=None):
-    results_file = os.path.join(report_dir, "results.txt")
-    with open(results_file, 'w') as f:
-        f.write("Batch Processing Results\n")
-        f.write("="*30 + "\n")
-
+    results = []
     processed_files = 0
     dir_list = os.listdir(start_dir)
+    
+    template_path = os.path.join(os.path.dirname(__file__), 'html_assets', 'template', 'batch_report.html')
+    with open(template_path, 'r') as f:
+        template_html = f.read()
+        
+    css_path = os.path.join(os.path.dirname(__file__), 'html_assets', 'template', 'batch_report.css')
+    shutil.copy(css_path, os.path.join(report_dir, 'style.css'))
+
     try:
         with tqdm(total=len(dir_list), desc="Processing directories") as pbar:
             for dir_name in dir_list:
@@ -28,17 +33,38 @@ def batch_parse(report_dir, start_dir, max_files=None):
                         try:
                             main.parseLog(report_dir, full_path)
                             processed_files += 1
-                            with open(results_file, 'a') as f:
-                                f.write(f"Processing: {full_path}\n")
-                                f.write(f"  -> Success\n")
+                            results.append({'dir': dir_name, 'status': 'Success', 'details': ''})
                         except Exception as e:
-                            with open(results_file, 'a') as f:
-                                f.write(f"Processing: {full_path}\n")
-                                f.write(f"  -> Failed: {e}\n")
-                                f.write(traceback.format_exc())
-                                f.write("\n")
+                            error_message = f"{e}\n{traceback.format_exc()}"
+                            results.append({'dir': dir_name, 'status': 'Failed', 'details': error_message})
     except KeyboardInterrupt:
         print("\nInterrupted by user. Stopping batch processing.")
+
+    table_rows = ""
+    for result in results:
+        dir_name = result['dir']
+        status = result['status']
+        details = result['details']
+        
+        if status == 'Success':
+            link = f'<a href="{dir_name}/index.html">{dir_name}</a>'
+            status_class = 'status-success'
+        else:
+            link = dir_name
+            status_class = 'status-failure'
+            
+        table_rows += f"""
+        <tr>
+            <td>{link}</td>
+            <td class="{status_class}">{status}</td>
+            <td><pre>{details}</pre></td>
+        </tr>
+        """
+    
+    final_html = template_html.replace('{table_rows}', table_rows)
+    
+    with open(os.path.join(report_dir, 'index.html'), 'w') as f:
+        f.write(final_html)
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
