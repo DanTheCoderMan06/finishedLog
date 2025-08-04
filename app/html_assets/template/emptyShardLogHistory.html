@@ -34,24 +34,28 @@
             </table>
         </div>
     </div>
+    <div id="tooltip" class="tooltip">Path copied to clipboard!</div>
+     <script>
+        function handleRightClick(event) {
+            event.preventDefault();
+            copyToClipboard(event.currentTarget.href);
+        }
 
-    <div class="container" id="error-container">
-        <h1 class="main-title">Errors</h1>
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Timestamp</th>
-                        <th>DB Name</th>
-                        <th>DB ID</th>
-                        <th>Event</th>
-                    </tr>
-                </thead>
-                <tbody id="error-table-body">
-                </tbody>
-            </table>
-        </div>
-    </div>
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showTooltip();
+            }).catch(err => {
+                console.error('Failed to copy text: ', err);
+            });
+        }
 
+        function showTooltip() {
+            const tooltip = document.getElementById('tooltip');
+            tooltip.classList.add('show');
+            setTimeout(() => {
+                tooltip.classList.remove('show');
+            }, 2000);
+        }
+    </script>
 </body>
 </html>

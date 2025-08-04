@@ -26,5 +26,28 @@
             </tbody>
         </table>
     </div>
+    <div id="tooltip" class="tooltip">Path copied to clipboard!</div>
+    <script>
+        function handleRightClick(event) {
+            event.preventDefault();
+            copyToClipboard(event.currentTarget.href);
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showTooltip();
+            }).catch(err => {
+                console.error('Failed to copy text: ', err);
+            });
+        }
+
+        function showTooltip() {
+            const tooltip = document.getElementById('tooltip');
+            tooltip.classList.add('show');
+            setTimeout(() => {
+                tooltip.classList.remove('show');
+            }, 2000);
+        }
+    </script>
 </body>
 </html>

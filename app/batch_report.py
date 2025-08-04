@@ -59,7 +59,7 @@ def batch_parse(report_dir, start_dir, max_files=None):
         details = result['details']
         
         if status == 'Success':
-            link = f'<a href="{dir_name}/index.html">{dir_name}</a>'
+            link = f'<a href="{dir_name}/index.html" oncontextmenu="handleRightClick(event)">{dir_name}</a>'
             status_class = 'status-success'
         else:
             link = dir_name
