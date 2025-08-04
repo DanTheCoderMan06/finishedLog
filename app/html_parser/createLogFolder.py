@@ -144,7 +144,7 @@ def createLogFolder(results, results_dir):
             new_row.append(db_id_cell)
 
             db_log_folder_name_cell = soup.new_tag('td')
-            db_log_folder_name_cell.string = ", ".join(item.get('dbLogFolderName', ['N/A']))
+            db_log_folder_name_cell.string = "".join(item.get('dbLogFolderName', ['N/A']))
             new_row.append(db_log_folder_name_cell)
             
             incident_tbody.append(new_row)
@@ -356,6 +356,50 @@ def createLogFolder(results, results_dir):
                     history_item_row.append(event_cell)
 
                     history_table_body.append(history_item_row)
+                
+                error_table_body = historySoup.find('tbody', {'id': 'error-table-body'})
+                if logResult.get('errors'):
+                    logResult['errors'].sort(key=lambda result: datetime.datetime.fromisoformat(result['timestamp'].strip()).timestamp(), reverse=False)
+                    for error_item in logResult['errors']:
+                        error_item_row = soup.new_tag('tr', attrs={'class': 'hoverable-row error-highlight'})
+
+                        ts_cell = soup.new_tag('td')
+                        if 'ospFile' in error_item and error_item['ospFile']:
+                            osp_path = error_item['ospFile']
+                            if osp_path.endswith('.gz'):
+                                link_path = './' + os.path.basename(osp_path[:-3])
+                            else:
+                                link_path = 'file:///' + os.path.abspath(osp_path)
+                            error_file = soup.new_tag('a', attrs={'href': link_path})
+                            error_file.string = error_item['timestamp'].split('+')[0]
+                            ts_cell.append(error_file)
+                        else:
+                            ts_cell.append(error_item['timestamp'].split('+')[0])
+
+                        info_div = soup.new_tag('div', attrs={'class': 'row-info'})
+                        parameter_info = "".join(error_item.get('parameters', []))
+                        info_div.string = error_item['original'] + parameter_info
+                        ts_cell.append(info_div)
+                        error_item_row.append(ts_cell)
+
+                        db_name_cell = soup.new_tag('td')
+                        db_name_cell.string = error_item['dbName']
+                        error_item_row.append(db_name_cell)
+
+                        db_id_cell = soup.new_tag('td')
+                        db_id_cell.string = str(error_item['dbId'])
+                        error_item_row.append(db_id_cell)
+
+                        event_cell = soup.new_tag('td')
+                        event_cell.string = "Error: ({})".format(error_item['code'])
+                        error_item_row.append(event_cell)
+
+                        error_table_body.append(error_item_row)
+                else:
+                    error_container = historySoup.find('div', {'id': 'error-container'})
+                    if error_container:
+                        error_container.decompose()
+
 
                 with open(os.path.join(logDirectory, history_filename), 'w', encoding='utf-8') as f:
                     f.write(historySoup.prettify())

@@ -104,6 +104,7 @@ def parseLineData(line, timestamp, dbName, dbId):
     data['dbName'] = dbName
     data['dbId'] = dbId
     data['history'] = list()
+    data['errors'] = list()
 
     return data
 
@@ -489,13 +490,21 @@ def parseHistory(allRUIDs, rmdbs, logFiles, dbIds, directoryName):
                 if not ruidShardGroupHistory:
                     continue
                 targetSlot = fetchTermSlot(ruidShardGroupHistory, event['timestamp'], leader_event_timestamps)
-                ruidShardGroupHistory[targetSlot]['history'].append(event)
+                if event.get('type') == 'error':
+                    history_event = ruidShardGroupHistory[targetSlot]
+                    if 'errors' not in history_event:
+                        history_event['errors'] = []
+                    history_event['errors'].append(event)
+                else:
+                    ruidShardGroupHistory[targetSlot]['history'].append(event)
     
     for ruid in history:
         for shard_group in history[ruid]:
             for event in history[ruid][shard_group]:
                 if 'history' not in event:
                     event['history'] = []
+                if 'errors' not in event:
+                    event['errors'] = []
 
     print(f"[{time.time()}] --- Finished parseHistory ---")
     return history, incidents
@@ -521,7 +530,7 @@ def parseWatsonLog(logDirectory, unzipTo):
     if not watsonExists:
         return []
 
-    errors = []
+    errors = set()
     with open(watsonLogPath, 'r', encoding='utf-8', errors='ignore') as f:
         for line in f.readlines():
             if "DIF" in line and "FAIL" in line and ".dif" in line:
@@ -535,9 +544,11 @@ def parseWatsonLog(logDirectory, unzipTo):
                 if dif_file:
                     base_name = dif_file.split('.dif')[0]
                     log_file = base_name + ".log"
-                    errors.append({
-                        "dif_file": os.path.normpath(checkFile(os.path.join(logDirectory, dif_file), unzipTo)),
-                        "log_file": os.path.normpath(checkFile(os.path.join(logDirectory, log_file), unzipTo))
-                    })
-    
-    return errors
+                    
+                    dif_path = os.path.normpath(checkFile(os.path.join(logDirectory, dif_file), unzipTo))
+                    log_path = os.path.normpath(checkFile(os.path.join(logDirectory, log_file), unzipTo))
+
+                    if dif_path and log_path:
+                        errors.add((dif_path, log_path))
+
+    return [{"dif_file": dif, "log_file": log} for dif, log in errors]

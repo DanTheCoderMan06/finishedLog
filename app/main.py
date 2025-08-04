@@ -138,6 +138,9 @@ def parseLog(logDirectory, directoryName):
 
     html_parser.createLogFolder(logContents, report_dir)
 
+    return logContents
+
+
 
 if __name__ == "__main__":
     try:
