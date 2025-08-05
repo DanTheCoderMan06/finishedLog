@@ -41,17 +41,24 @@ def batch_parse(report_dir, start_dir, max_files=None):
         print("\nInterrupted by user. Stopping batch processing.")
 
     table_rows = ""
-    databases_with_errors = []
+    folders_with_errors = []
     for result in results:
         if result['status'] == 'Success' and result['log_contents']:
+            has_error = False
             history = result['log_contents'].get('history', {})
             for ruid, shard_groups in history.items():
                 for sg, events in shard_groups.items():
                     for event in events:
                         if event.get('errors'):
-                            db_name = event.get('dbName')
-                            if db_name and db_name not in databases_with_errors:
-                                databases_with_errors.append(db_name)
+                            has_error = True
+                            break
+                    if has_error:
+                        break
+                if has_error:
+                    break
+            
+            if has_error and result['dir'] not in folders_with_errors:
+                folders_with_errors.append(result['dir'])
 
     for result in results:
         dir_name = result['dir']
@@ -74,8 +81,8 @@ def batch_parse(report_dir, start_dir, max_files=None):
         """
     
     error_db_list_html = "<ul>"
-    for db in databases_with_errors:
-        error_db_list_html += f"<li>{db}</li>"
+    for folder in folders_with_errors:
+        error_db_list_html += f"<li>{folder}</li>"
     error_db_list_html += "</ul>"
 
     final_html = template_html.replace('{table_rows}', table_rows)
