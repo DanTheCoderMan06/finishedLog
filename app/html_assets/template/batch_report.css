@@ -40,3 +40,6 @@ th {
     color: red;
     font-weight: bold;
 }
+.error-highlight {
+    background-color: #ffdddd;
+}

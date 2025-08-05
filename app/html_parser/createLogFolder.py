@@ -49,7 +49,7 @@ def createLogFolder(results, results_dir):
         if ruid_error_flags[ruid]:
             newRow['class'] = 'error-highlight'
         cell1 = soup.new_tag('td')
-        link = soup.new_tag('a', attrs={'href': './RULog{}.html'.format(ruid), 'oncontextmenu': "handleRightClick(event)"})
+        link = soup.new_tag('a', attrs={'href': './RULog{}.html'.format(ruid)})
         link.string = "Replication Unit {}".format(ruid)
         cell1.append(link)
         newRow.append(cell1)
@@ -105,7 +105,7 @@ def createLogFolder(results, results_dir):
 
             new_row = soup.new_tag('tr')
             cell = soup.new_tag('td')
-            link = soup.new_tag('a', attrs={'href': link_path, 'oncontextmenu': "handleRightClick(event)"})
+            link = soup.new_tag('a', attrs={'href': link_path, 'oncontextmenu': "navigator.clipboard.writeText(this.href); event.preventDefault(); alert('Path copied to clipboard!');"})
             link.string = name
             cell.append(link)
             new_row.append(cell)
@@ -125,7 +125,7 @@ def createLogFolder(results, results_dir):
                     link_path = './' + os.path.basename(unzipped_path)
                 else:
                     link_path = ''
-                main_file_link = soup.new_tag('a', attrs={'href': link_path, 'oncontextmenu': "handleRightClick(event)"})
+                main_file_link = soup.new_tag('a', attrs={'href': link_path, 'oncontextmenu': "navigator.clipboard.writeText(this.href); event.preventDefault(); alert('Path copied to clipboard!');"})
                 main_file_link.string = os.path.basename(main_file_path)
                 main_file_cell.append(main_file_link)
             else:
@@ -187,14 +187,14 @@ def createLogFolder(results, results_dir):
             new_row = soup.new_tag('tr')
             
             dif_cell = soup.new_tag('td')        
-            dif_link = soup.new_tag('a', attrs={'href': difFile, 'oncontextmenu': "handleRightClick(event)"})
+            dif_link = soup.new_tag('a', attrs={'href': difFile, 'oncontextmenu': "navigator.clipboard.writeText(this.href); event.preventDefault(); alert('Path copied to clipboard!');"})
             dif_link.string = os.path.basename(item['dif_file'])
             dif_cell.append(dif_link)
             new_row.append(dif_cell)
 
             log_cell = soup.new_tag('td')
             if os.path.exists(item['log_file']):
-                log_link = soup.new_tag('a', attrs={'href':  logFile, 'oncontextmenu': "handleRightClick(event)"})
+                log_link = soup.new_tag('a', attrs={'href':  logFile, 'oncontextmenu': "navigator.clipboard.writeText(this.href); event.preventDefault(); alert('Path copied to clipboard!');"})
                 log_link.string = os.path.basename(item['log_file'])
                 log_cell.append(log_link)
             else:
@@ -236,7 +236,7 @@ def createLogFolder(results, results_dir):
                 newRow['class'] = 'error-highlight'
 
             cell1 = soup.new_tag('td')
-            link = soup.new_tag('a', attrs={'href': './ShardGroupLog_{}_RUID_{}.html'.format(shardGroup, ruid), 'oncontextmenu': "handleRightClick(event)"})
+            link = soup.new_tag('a', attrs={'href': './ShardGroupLog_{}_RUID_{}.html'.format(shardGroup, ruid)})
             link.string = "Shard Group {}".format(shardGroup)
             cell1.append(link)
             newRow.append(cell1)
@@ -270,7 +270,7 @@ def createLogFolder(results, results_dir):
 
                 history_filename = "history_{}.html".format(uuid.uuid4())
                 cell1 = soup.new_tag('td')
-                link = soup.new_tag('a', attrs={'href': './{}'.format(history_filename), 'oncontextmenu': "handleRightClick(event)"})
+                link = soup.new_tag('a', attrs={'href': './{}'.format(history_filename)})
                 link.string = logResult['timestamp'].split('+')[0]
                 cell1.append(link)
                 newRow.append(cell1)
@@ -317,7 +317,7 @@ def createLogFolder(results, results_dir):
                             link_path = './' + os.path.basename(osp_path[:-3])
                         else:
                             link_path = 'file:///' + os.path.abspath(osp_path)
-                        error_file = soup.new_tag('a', attrs={'href': link_path, 'oncontextmenu': "handleRightClick(event)"})
+                        error_file = soup.new_tag('a', attrs={'href': link_path, 'oncontextmenu': "navigator.clipboard.writeText(this.href); event.preventDefault(); alert('Path copied to clipboard!');"})
                         error_file.string = history_item['timestamp'].split('+')[0]
                         ts_cell.append(error_file)
                     else:

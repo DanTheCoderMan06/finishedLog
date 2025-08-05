@@ -11,7 +11,9 @@
         <h1>Batch Processing Report</h1>
         <div class="error-summary">
             <h2>Databases with Errors</h2>
-            {error_dbs}
+            <div class="error-dbs">
+                {error_dbs}
+            </div>
         </div>
         <table>
             <thead>
@@ -26,28 +28,5 @@
             </tbody>
         </table>
     </div>
-    <div id="tooltip" class="tooltip">Path copied to clipboard!</div>
-    <script>
-        function handleRightClick(event) {
-            event.preventDefault();
-            copyToClipboard(event.currentTarget.href);
-        }
-
-        function copyToClipboard(text) {
-            navigator.clipboard.writeText(text).then(() => {
-                showTooltip();
-            }).catch(err => {
-                console.error('Failed to copy text: ', err);
-            });
-        }
-
-        function showTooltip() {
-            const tooltip = document.getElementById('tooltip');
-            tooltip.classList.add('show');
-            setTimeout(() => {
-                tooltip.classList.remove('show');
-            }, 2000);
-        }
-    </script>
 </body>
 </html>

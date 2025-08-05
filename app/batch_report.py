@@ -65,15 +65,16 @@ def batch_parse(report_dir, start_dir, max_files=None):
         status = result['status']
         details = result['details']
         
+        status_class = 'status-success' if status == 'Success' else 'status-failure'
+        row_class = 'error-highlight' if dir_name in folders_with_errors else ''
+
         if status == 'Success':
-            link = f'<a href="{dir_name}/index.html" oncontextmenu="handleRightClick(event)">{dir_name}</a>'
-            status_class = 'status-success'
+            link = f'<a href="{dir_name}/index.html">{dir_name}</a>'
         else:
             link = dir_name
-            status_class = 'status-failure'
             
         table_rows += f"""
-        <tr>
+        <tr class="{row_class}">
             <td>{link}</td>
             <td class="{status_class}">{status}</td>
             <td><pre>{details}</pre></td>
