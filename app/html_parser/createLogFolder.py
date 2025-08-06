@@ -5,6 +5,30 @@ import uuid
 import gzip
 import shutil
 
+def copy_file_to_report_dir(file_path, report_dir):
+    if not file_path or 'file:///' in file_path:
+        return file_path
+    
+    if not os.path.exists(file_path):
+        if os.path.exists(file_path + ".gz"):
+            file_path += ".gz"
+        else:
+            return ''
+
+    base_name = os.path.basename(file_path)
+    dest_path = os.path.join(report_dir, base_name)
+
+    if file_path.endswith('.gz') and not dest_path.endswith('.gz'):
+        dest_path += '.gz'
+
+    if not os.path.exists(dest_path):
+        shutil.copy(file_path, dest_path)
+
+    if dest_path.endswith('.gz'):
+        return './' + os.path.basename(dest_path)
+    
+    return './' + base_name
+
 # Generates an HTML log folder from a dictionary of results.
 # Args:
 #     results (dict): A dictionary containing the parsed log data.
@@ -89,20 +113,8 @@ def createLogFolder(results, results_dir):
         for i in range(len(results['incidents'])):
             item = results['incidents'][i]
             name = item['folderName']
-            path = item['fileName'].replace('file:///', '')
-            if os.path.exists(path):
-                link_path = 'file:///' + os.path.abspath(path)
-            elif os.path.exists(path + ".gz"):
-                gz_path = path + ".gz"
-                unzipped_path = os.path.join(logDirectory, os.path.basename(path))
-                with gzip.open(gz_path, 'rb') as f_in:
-                    if not os.path.exists(unzipped_path):
-                        with open(unzipped_path, 'wb') as f_out:
-                            shutil.copyfileobj(f_in, f_out)
-                link_path = './' + os.path.basename(unzipped_path)
-            else:
-                link_path = ''
-
+            path = item['fileName']
+            link_path = copy_file_to_report_dir(path, logDirectory)
             new_row = soup.new_tag('tr')
             cell = soup.new_tag('td')
             link = soup.new_tag('a', attrs={'href': link_path, 'oncontextmenu': "navigator.clipboard.writeText(this.href); event.preventDefault(); alert('Path copied to clipboard!');"})
@@ -112,19 +124,8 @@ def createLogFolder(results, results_dir):
 
             main_file_cell = soup.new_tag('td')
             if 'mainFile' in item and item['mainFile']:
-                main_file_path = item['mainFile'].replace('file:///', '')
-                if os.path.exists(main_file_path):
-                    link_path = 'file:///' + os.path.abspath(main_file_path)
-                elif os.path.exists(main_file_path + ".gz"):
-                    gz_path = main_file_path + ".gz"
-                    unzipped_path = os.path.join(logDirectory, os.path.basename(main_file_path))
-                    with gzip.open(gz_path, 'rb') as f_in:
-                        if not os.path.exists(unzipped_path):
-                            with open(unzipped_path, 'wb') as f_out:
-                                shutil.copyfileobj(f_in, f_out)
-                    link_path = './' + os.path.basename(unzipped_path)
-                else:
-                    link_path = ''
+                main_file_path = item['mainFile']
+                link_path = copy_file_to_report_dir(main_file_path, logDirectory)
                 main_file_link = soup.new_tag('a', attrs={'href': link_path, 'oncontextmenu': "navigator.clipboard.writeText(this.href); event.preventDefault(); alert('Path copied to clipboard!');"})
                 main_file_link.string = os.path.basename(main_file_path)
                 main_file_cell.append(main_file_link)
@@ -178,23 +179,17 @@ def createLogFolder(results, results_dir):
             difFile = item['dif_file']
             logFile = item['log_file']
             
-            if "file:///" not in item['dif_file']:
-                difFile = "file:///" + difFile
-
-            if "file:///" not in item['log_file']:
-                logFile = "file:///" + logFile
-
             new_row = soup.new_tag('tr')
             
-            dif_cell = soup.new_tag('td')        
-            dif_link = soup.new_tag('a', attrs={'href': difFile, 'oncontextmenu': "navigator.clipboard.writeText(this.href); event.preventDefault(); alert('Path copied to clipboard!');"})
+            dif_cell = soup.new_tag('td')
+            dif_link = soup.new_tag('a', attrs={'href': copy_file_to_report_dir(difFile, logDirectory), 'oncontextmenu': "navigator.clipboard.writeText(this.href); event.preventDefault(); alert('Path copied to clipboard!');"})
             dif_link.string = os.path.basename(item['dif_file'])
             dif_cell.append(dif_link)
             new_row.append(dif_cell)
 
             log_cell = soup.new_tag('td')
             if os.path.exists(item['log_file']):
-                log_link = soup.new_tag('a', attrs={'href':  logFile, 'oncontextmenu': "navigator.clipboard.writeText(this.href); event.preventDefault(); alert('Path copied to clipboard!');"})
+                log_link = soup.new_tag('a', attrs={'href':  copy_file_to_report_dir(logFile, logDirectory), 'oncontextmenu': "navigator.clipboard.writeText(this.href); event.preventDefault(); alert('Path copied to clipboard!');"})
                 log_link.string = os.path.basename(item['log_file'])
                 log_cell.append(log_link)
             else:
@@ -313,10 +308,7 @@ def createLogFolder(results, results_dir):
                     ts_cell = soup.new_tag('td')
                     if 'ospFile' in history_item and history_item['ospFile']:
                         osp_path = history_item['ospFile']
-                        if osp_path.endswith('.gz'):
-                            link_path = './' + os.path.basename(osp_path[:-3])
-                        else:
-                            link_path = 'file:///' + os.path.abspath(osp_path)
+                        link_path = copy_file_to_report_dir(osp_path, logDirectory)
                         error_file = soup.new_tag('a', attrs={'href': link_path, 'oncontextmenu': "navigator.clipboard.writeText(this.href); event.preventDefault(); alert('Path copied to clipboard!');"})
                         error_file.string = history_item['timestamp'].split('+')[0]
                         ts_cell.append(error_file)

@@ -306,7 +306,7 @@ def fetchFileInfo(incidentObject, targetLog, rmdbs, ruids, targetUnzip):
                     for word in lineWords:
                         if ".trc" in word:
                             filePath = word.strip()
-                            incidentObject['mainFile'] = "file:///{}".format(filePath)
+                            incidentObject['mainFile'] = filePath
                             baseName = os.path.basename(filePath)
                             pathWords = baseName.split('_')
                             for info in pathWords:
@@ -340,7 +340,7 @@ def getAllIncidents(incidentPath, rmdbs, ruids, targetUnzip):
                 newincident = {}
                 targetFile = findIncidentFile(full_path, targetUnzip)
                 newincident['folderName'] = item.name
-                newincident['fileName'] = "file:///{}".format(targetFile)
+                newincident['fileName'] = targetFile
                 newincident['folderPath'] = full_path
                 fetchFileInfo(newincident,targetFile, rmdbs, ruids, targetUnzip)
                 results.append(newincident)
@@ -545,8 +545,8 @@ def parseWatsonLog(logDirectory, unzipTo):
                     base_name = dif_file.split('.dif')[0]
                     log_file = base_name + ".log"
                     
-                    dif_path = os.path.normpath(checkFile(os.path.join(logDirectory, dif_file), unzipTo))
-                    log_path = os.path.normpath(checkFile(os.path.join(logDirectory, log_file), unzipTo))
+                    dif_path = checkFile(os.path.join(logDirectory, dif_file), unzipTo)
+                    log_path = checkFile(os.path.join(logDirectory, log_file), unzipTo)
 
                     if dif_path and log_path:
                         errors.add((dif_path, log_path))
