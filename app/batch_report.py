@@ -81,13 +81,7 @@ def batch_parse(report_dir, start_dir, max_files=None):
         </tr>
         """
     
-    error_db_list_html = "<ul>"
-    for folder in folders_with_errors:
-        error_db_list_html += f"<li>{folder}</li>"
-    error_db_list_html += "</ul>"
-
     final_html = template_html.replace('{table_rows}', table_rows)
-    final_html = final_html.replace('{error_dbs}', error_db_list_html)
     
     with open(os.path.join(report_dir, 'index.html'), 'w') as f:
         f.write(final_html)
