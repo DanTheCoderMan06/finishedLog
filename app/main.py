@@ -129,10 +129,10 @@ def parseLog(logDirectory, directoryName):
 
     logContents['rmdbs'] = rmdbs
     logContents['shardGroups'] = shardGroups
-    logContents['history'], logContents['incidents'] = log_parser.parseHistory(allRUIDs, rmdbs, logFiles, dbIds, report_dir)
+    logContents['history'], _ = log_parser.parseHistory(allRUIDs, rmdbs, logFiles, dbIds, report_dir)
     logContents['allRUIDS'] = allRUIDs
     logContents['logDirectory'] = directoryName
-    logContents['watson_errors'] = log_parser.parseWatsonLog(directoryName, toUnzip)
+    logContents['trace_errors'], logContents['watson_errors'] = log_parser.parseWatsonLog(directoryName, toUnzip)
 
     print("Creating Log Folder")
 

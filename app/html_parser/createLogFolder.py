@@ -9,25 +9,33 @@ def copy_file_to_report_dir(file_path, report_dir):
     if not file_path or 'file:///' in file_path:
         return file_path
     
+    is_gzipped = file_path.endswith('.gz')
+
     if not os.path.exists(file_path):
         if os.path.exists(file_path + ".gz"):
             file_path += ".gz"
+            is_gzipped = True
         else:
             return ''
 
-    base_name = os.path.basename(file_path)
-    dest_path = os.path.join(report_dir, base_name)
-
-    if file_path.endswith('.gz') and not dest_path.endswith('.gz'):
-        dest_path += '.gz'
-
-    if not os.path.exists(dest_path):
-        shutil.copy(file_path, dest_path)
-
-    if dest_path.endswith('.gz'):
-        return './' + os.path.basename(dest_path)
-    
-    return './' + base_name
+    if is_gzipped:
+        unzipped_base_name = os.path.basename(file_path[:-3])
+        dest_path = os.path.join(report_dir, unzipped_base_name)
+        
+        if not os.path.exists(dest_path):
+            with gzip.open(file_path, 'rb') as f_in:
+                with open(dest_path, 'wb') as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+        
+        return './' + unzipped_base_name
+    else:
+        base_name = os.path.basename(file_path)
+        dest_path = os.path.join(report_dir, base_name)
+        
+        if not os.path.exists(dest_path):
+            shutil.copy(file_path, dest_path)
+            
+        return './' + base_name
 
 # Generates an HTML log folder from a dictionary of results.
 # Args:
@@ -89,69 +97,60 @@ def createLogFolder(results, results_dir):
         newRow.append(error_cell)
         tableBody.append(newRow)
 
-    if 'incidents' in results and results['incidents']:
+    if 'trace_errors' in results and results['trace_errors']:
         container = soup.find('div', class_='container')
 
-        incident_title = soup.new_tag('h1', attrs={'class': 'main-title'})
-        incident_title.string = "Incidents"
-        container.append(incident_title)
+        trace_title = soup.new_tag('h1', attrs={'class': 'main-title'})
+        trace_title.string = "Trace Errors"
+        container.append(trace_title)
 
-        incident_container = soup.new_tag('div', attrs={'class': 'table-container'})
+        trace_container = soup.new_tag('div', attrs={'class': 'table-container'})
         
-        incident_table = soup.new_tag('table')
-        incident_thead = soup.new_tag('thead')
-        incident_tr = soup.new_tag('tr')
-        headers = ["Incident File", "Main File", "RUID", "DB ID", "DB Log Folder Name"]
+        trace_table = soup.new_tag('table')
+        trace_thead = soup.new_tag('thead')
+        trace_tr = soup.new_tag('tr')
+        headers = ["Trace File", "Continued Log"]
         for header_text in headers:
-            incident_th = soup.new_tag('th')
-            incident_th.string = header_text
-            incident_tr.append(incident_th)
-        incident_thead.append(incident_tr)
-        incident_table.append(incident_thead)
+            trace_th = soup.new_tag('th')
+            trace_th.string = header_text
+            trace_tr.append(trace_th)
+        trace_thead.append(trace_tr)
+        trace_table.append(trace_thead)
         
-        incident_tbody = soup.new_tag('tbody')
-        for i in range(len(results['incidents'])):
-            item = results['incidents'][i]
-            name = item['folderName']
-            path = item['fileName']
-            link_path = copy_file_to_report_dir(path, logDirectory)
+        trace_tbody = soup.new_tag('tbody')
+        for item in results['trace_errors']:
             new_row = soup.new_tag('tr')
-            cell = soup.new_tag('td')
-            link = soup.new_tag('a', attrs={'href': link_path, 'oncontextmenu': "navigator.clipboard.writeText(this.href); event.preventDefault(); alert('Path copied to clipboard!');"})
-            link.string = name
-            cell.append(link)
-            new_row.append(cell)
-
-            main_file_cell = soup.new_tag('td')
-            if 'mainFile' in item and item['mainFile']:
-                main_file_path = item['mainFile']
-                link_path = copy_file_to_report_dir(main_file_path, logDirectory)
-                main_file_link = soup.new_tag('a', attrs={'href': link_path, 'oncontextmenu': "navigator.clipboard.writeText(this.href); event.preventDefault(); alert('Path copied to clipboard!');"})
-                main_file_link.string = os.path.basename(main_file_path)
-                main_file_cell.append(main_file_link)
-            else:
-                main_file_cell.string = "N/A"
-            new_row.append(main_file_cell)
-
-            ruid_cell = soup.new_tag('td')
-            ruid_cell.string = str(item.get('ruid', 'N/A'))
-            new_row.append(ruid_cell)
-
-            db_id_cell = soup.new_tag('td')
-            db_id_cell.string = str(item.get('dbId', 'N/A'))
-            new_row.append(db_id_cell)
-
-            db_log_folder_name_cell = soup.new_tag('td')
-            db_log_folder_name_cell.string = "".join(item.get('dbLogFolderName', ['N/A']))
-            new_row.append(db_log_folder_name_cell)
             
-            incident_tbody.append(new_row)
-        
-        incident_table.append(incident_tbody)
-        incident_container.append(incident_table)
-        
-        container.append(incident_container)
+            # Trace File column
+            file_cell = soup.new_tag('td')
+            file_path = item.get('file')
+            if file_path:
+                link_path = copy_file_to_report_dir(file_path, logDirectory)
+                file_link = soup.new_tag('a', attrs={'href': link_path, 'oncontextmenu': "navigator.clipboard.writeText(this.href); event.preventDefault(); alert('Path copied to clipboard!');"})
+                file_link.string = os.path.basename(file_path)
+                file_cell.append(file_link)
+            else:
+                file_cell.string = "N/A"
+            new_row.append(file_cell)
 
+            # Continued Log column
+            log_cell = soup.new_tag('td')
+            log_file_path = item.get('log_file')
+            if log_file_path:
+                link_path = copy_file_to_report_dir(log_file_path, logDirectory)
+                log_link = soup.new_tag('a', attrs={'href': link_path, 'oncontextmenu': "navigator.clipboard.writeText(this.href); event.preventDefault(); alert('Path copied to clipboard!');"})
+                log_link.string = os.path.basename(log_file_path)
+                log_cell.append(log_link)
+            else:
+                log_cell.string = "N/A"
+            new_row.append(log_cell)
+            
+            trace_tbody.append(new_row)
+        
+        trace_table.append(trace_tbody)
+        trace_container.append(trace_table)
+        
+        container.append(trace_container)
 
     if 'watson_errors' in results and results['watson_errors']:
         container = soup.find('div', class_='container')

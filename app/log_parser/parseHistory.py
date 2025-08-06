@@ -254,97 +254,6 @@ def findOspFile(trace_dir, targetOsp, ruid, dbName, dbId, processName, targetUnz
    return read_path
 
 
-# Finds the first .trc file in a directory.
-# Args:
-#     incident_dir (str): The directory to search.
-# Returns:
-#     str: The path to the .trc file, or None if not found.
-def findIncidentFile(incident_dir, targetUnzip):
-    print(f"[{time.time()}] findIncidentFile: searching in '{incident_dir}'")
-    with os.scandir(incident_dir) as items:
-        for item in items:
-            if item.name.endswith('.trc.gz'):
-                gz_path = os.path.join(incident_dir, item.name)
-                unzipped_path = gz_path[:-3]
-                with gzip.open(gz_path, 'rb') as f_in:
-                    dest_path = os.path.join(targetUnzip, os.path.basename(unzipped_path))
-                    if not os.path.exists(dest_path):
-                        with open(dest_path, 'wb') as f_out:
-                            shutil.copyfileobj(f_in, f_out)
-                print(f"[{time.time()}] findIncidentFile: found and unzipped '{gz_path}' to '{unzipped_path}'")
-                return unzipped_path
-            elif item.name.endswith('.trc'):
-                newPath = os.path.join(incident_dir,item.name)
-                print(f"[{time.time()}] findIncidentFile: found '{newPath}'")
-                return newPath
-    print(f"[{time.time()}] findIncidentFile: no .trc file found in '{incident_dir}'")
-
-
-def fetchFileInfo(incidentObject, targetLog, rmdbs, ruids, targetUnzip):
-    try:
-        try:
-            with open(targetLog, 'r', encoding='utf-8', errors='ignore') as fp:
-                lines = fp.readlines()
-        except FileNotFoundError:
-            gz_path = targetLog + ".gz"
-            if os.path.exists(gz_path):
-                with gzip.open(gz_path, 'rb') as f_in:
-                    dest_path = os.path.join(targetUnzip, os.path.basename(targetLog))
-                    if not os.path.exists(dest_path):
-                        with open(dest_path, 'wb') as f_out:
-                            shutil.copyfileobj(f_in, f_out)
-                with open(targetLog, 'r', encoding='utf-8', errors='ignore') as fp:
-                    lines = fp.readlines()
-                
-            else:
-                print(f"Error processing file {targetLog}: File not found")
-                return
-
-        for line in lines:
-            if CONTINUED_FROM_FILE_DUMP_STRING in line:
-                    lineWords = line.split(' ')
-                    for word in lineWords:
-                        if ".trc" in word:
-                            filePath = word.strip()
-                            incidentObject['mainFile'] = filePath
-                            baseName = os.path.basename(filePath)
-                            pathWords = baseName.split('_')
-                            for info in pathWords:
-                                if logExists(rmdbs, info):
-                                        incidentObject['dbLogFolderName'] = info
-                                try:
-                                    onlyNumbers = "".join([char for char in info if char.isdigit()])
-                                    if int(onlyNumbers) in ruids:
-                                        incidentObject['ruid'] = int(onlyNumbers)
-                                    elif int(onlyNumbers) < 10000:
-                                        incidentObject['dbId'] = int(onlyNumbers)
-                                except:
-                                    pass
-    except Exception as e:
-        print(f"Error processing file {targetLog}: {e}")
-
-
-
-# Gets all incidents from a given path.
-# Args:
-#     incidentPath (str): The path to the incident directory.
-# Returns:
-#     list: A list of dictionaries, where each dictionary represents an incident.
-def getAllIncidents(incidentPath, rmdbs, ruids, targetUnzip):
-    print(f"[{time.time()}] getAllIncidents: getting incidents from '{incidentPath}'")
-    results = []
-    with os.scandir(incidentPath) as items:
-        for item in items:
-            full_path = os.path.join(incidentPath, item.name)
-            if os.path.isdir(full_path):
-                newincident = {}
-                targetFile = findIncidentFile(full_path, targetUnzip)
-                newincident['folderName'] = item.name
-                newincident['fileName'] = targetFile
-                newincident['folderPath'] = full_path
-                fetchFileInfo(newincident,targetFile, rmdbs, ruids, targetUnzip)
-                results.append(newincident)
-    return results
 
 def getLogName(rmdbList, target):
     for rmdb in rmdbList:
@@ -397,26 +306,6 @@ def parseAllOtherEvents(logFileContent, ruidList, dbName, dbId, logFilePath, inc
             continue
         result[ruid].append(lineInfo)
 
-    print(f"[{time.time()}] parseAllOtherEvents: searching for incidents for log file '{logFilePath}'")
-    incident_parent_dir = findParentWithSubdir('trace', logFilePath)
-    if not incident_parent_dir:
-        for dbLogName in dbLogNames:
-            unzipPath = os.path.join(logFilePath, dbLogName)
-            if os.path.exists(unzipPath):
-                incident_parent_dir = unzipPath
-                break
-    if incident_parent_dir:
-        incidentPath = os.path.join(incident_parent_dir, 'incident')
-        print(f"[{time.time()}] parseAllOtherEvents: incident path is '{incidentPath}'")
-        if os.path.isdir(incidentPath):
-            for item in getAllIncidents(incidentPath, rmdbs, ruidList, targetUnzipDirectory):
-                if 'mainFile' in item:
-                    item['mainFile'] = os.path.join(os.path.join(incident_parent_dir,'trace'), os.path.basename(item['mainFile']))
-                incidents.append(item)
-        else:
-            print(f"[{time.time()}] parseAllOtherEvents: incident directory not found at '{incidentPath}'")
-    else:
-        print(f"[{time.time()}] parseAllOtherEvents: 'trace' parent directory not found for '{logFilePath}'")
     return result
             
 
@@ -522,23 +411,63 @@ def checkFile(filePath, unzipTo):
         return dest_path
     else:
         return None
+    
+def listRightIndex(alist, value):
+    return len(alist) - alist[-1::-1].index(value) -1
 
 def parseWatsonLog(logDirectory, unzipTo):
     watsonDifPath = os.path.join(logDirectory, 'watson.dif')
     if not os.path.exists(watsonDifPath):
-        return []
+        return [], []
 
-    error_pairs = set()
+    trace_errors = []
+    watson_errors = []
+    seen_errors = set()
 
     with open(watsonDifPath, 'r', encoding='utf-8', errors='ignore') as f:
         for line in f.readlines():
             if "FAIL" not in line:
                 continue
 
+            trc_match = re.search(r'(\S+\.trc)', line)
             dif_match = re.search(r'(\S+\.dif)', line)
             log_match = re.search(r'(\S+\.log)', line)
 
-            if dif_match:
+            if trc_match:
+                trc_file = trc_match.group(1)
+                trc_path = checkFile(os.path.join(logDirectory, trc_file), unzipTo)
+                if trc_path:
+                    entry = {'file': trc_path}
+                    continued_log_path_str = ''
+                    try:
+                        with open(trc_path, 'r', encoding='utf-8', errors='ignore') as trc_fp:
+                            for trc_line in trc_fp.readlines():
+                                if CONTINUED_FROM_FILE_DUMP_STRING in trc_line:
+                                    continued_log_path_str = trc_line.split(CONTINUED_FROM_FILE_DUMP_STRING, 1)[1].strip()
+                                    break
+                    except Exception as e:
+                        print(f"Error reading {trc_path} to find continued log: {e}")
+                    
+                    if continued_log_path_str:
+                        try:
+                            path_parts = continued_log_path_str.split('/')
+                            rdbms_index = listRightIndex(path_parts,'rdbms')
+                            relative_path = os.path.join(*path_parts[rdbms_index:])
+                            diag_path = os.path.join(logDirectory, 'diag')
+                            continued_log_full_path = os.path.join(diag_path, relative_path)
+                            entry['log_file'] = checkFile(continued_log_full_path, unzipTo)
+                            breakpoint()                            
+                        except ValueError:
+                             entry['log_file'] = ''
+                    else:
+                        entry['log_file'] = ''
+                    
+                    entry_tuple = tuple(sorted(entry.items()))
+                    if entry_tuple not in seen_errors:
+                        trace_errors.append(entry)
+                        seen_errors.add(entry_tuple)
+
+            elif dif_match:
                 dif_file = dif_match.group(1)
                 base_name = dif_file.rsplit('.dif', 1)[0]
                 log_file = f"{base_name}.log"
@@ -547,9 +476,13 @@ def parseWatsonLog(logDirectory, unzipTo):
                 log_path = checkFile(os.path.join(logDirectory, log_file), unzipTo)
                 
                 if dif_path:
-                    error_pairs.add((dif_path, log_path if log_path else ''))
+                    entry = {'dif_file': dif_path, 'log_file': log_path if log_path else ''}
+                    entry_tuple = tuple(sorted(entry.items()))
+                    if entry_tuple not in seen_errors:
+                        watson_errors.append(entry)
+                        seen_errors.add(entry_tuple)
 
-            elif log_match:
+            elif log_match and not dif_match and not trc_match:
                 log_file = log_match.group(1)
                 base_name = log_file.rsplit('.log', 1)[0]
                 dif_file = f"{base_name}.dif"
@@ -558,6 +491,10 @@ def parseWatsonLog(logDirectory, unzipTo):
                 dif_path = checkFile(os.path.join(logDirectory, dif_file), unzipTo)
 
                 if log_path:
-                    error_pairs.add((dif_path if dif_path else '', log_path))
+                    entry = {'dif_file': dif_path if dif_path else '', 'log_file': log_path}
+                    entry_tuple = tuple(sorted(entry.items()))
+                    if entry_tuple not in seen_errors:
+                        watson_errors.append(entry)
+                        seen_errors.add(entry_tuple)
 
-    return [{"dif_file": dif, "log_file": log} for dif, log in sorted(list(error_pairs))]
+    return trace_errors, watson_errors
