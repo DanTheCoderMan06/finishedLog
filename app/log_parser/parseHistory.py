@@ -456,7 +456,6 @@ def parseWatsonLog(logDirectory, unzipTo):
                             diag_path = os.path.join(logDirectory, 'diag')
                             continued_log_full_path = os.path.join(diag_path, relative_path)
                             entry['log_file'] = checkFile(continued_log_full_path, unzipTo)
-                            breakpoint()                            
                         except ValueError:
                              entry['log_file'] = ''
                     else:

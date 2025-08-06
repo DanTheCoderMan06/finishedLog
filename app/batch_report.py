@@ -65,6 +65,22 @@ def batch_parse(report_dir, start_dir, max_files=None):
 
     table_rows = ""
     folders_with_errors = []
+    processed_dirs = {result['dir'] for result in results}
+
+    for dir_name, data in cache.items():
+        if dir_name not in processed_dirs:
+            report_path = os.path.join(report_dir, dir_name, 'index.html')
+            if os.path.exists(report_path):
+                days_existed = (now - datetime.fromisoformat(data['date'])).days
+                results.append({
+                    'dir': dir_name,
+                    'status': 'Cached',
+                    'details': 'Report loaded from cache.',
+                    'log_contents': None,
+                    'is_new': False,
+                    'days_existed': days_existed
+                })
+
     for result in results:
         if result['status'] == 'Success' and result['log_contents']:
             has_error = False
@@ -88,12 +104,15 @@ def batch_parse(report_dir, start_dir, max_files=None):
         status = result['status']
         details = result['details']
         
-        status_class = 'status-success' if status == 'Success' else 'status-failure'
+        if status == 'Cached':
+            status_class = 'status-cached'
+        else:
+            status_class = 'status-success' if status == 'Success' else 'status-failure'
         row_class = 'error-highlight' if dir_name in folders_with_errors else ''
         
         new_label = " (New)" if result.get('is_new') else ""
 
-        if status == 'Success':
+        if status == 'Success' or status == 'Cached':
             link = f'<a href="{dir_name}/index.html">{dir_name}</a>'
         else:
             link = dir_name

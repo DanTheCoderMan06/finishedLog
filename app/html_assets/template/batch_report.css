@@ -40,6 +40,11 @@ th {
     color: red;
     font-weight: bold;
 }
+
+.status-cached {
+    color: gray;
+    font-weight: bold;
+}
 .error-highlight {
     background-color: #ffdddd;
 }
