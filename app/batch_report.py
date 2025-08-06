@@ -51,7 +51,7 @@ def batch_parse(report_dir, start_dir, max_files=None):
                         try:
                             log_contents = main.parseLog(report_dir, full_path)
                             processed_files += 1
-                            is_new = dir_name not in cache or (now - datetime.fromisoformat(cache[dir_name]['date'])) < timedelta(days=1)
+                            is_new = dir_name not in cache
                             days_existed = (now - datetime.fromisoformat(cache[dir_name]['date'])).days if dir_name in cache else 0
                             results.append({'dir': dir_name, 'status': 'Success', 'details': '', 'log_contents': log_contents, 'is_new': is_new, 'days_existed': days_existed})
                             if dir_name not in cache:
