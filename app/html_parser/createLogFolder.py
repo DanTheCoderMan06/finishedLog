@@ -188,8 +188,8 @@ def createLogFolder(results, results_dir):
             new_row.append(dif_cell)
 
             log_cell = soup.new_tag('td')
-            if os.path.exists(item['log_file']):
-                log_link = soup.new_tag('a', attrs={'href':  copy_file_to_report_dir(logFile, logDirectory), 'oncontextmenu': "navigator.clipboard.writeText(this.href); event.preventDefault(); alert('Path copied to clipboard!');"})
+            if item.get('log_file') and os.path.exists(item['log_file']):
+                log_link = soup.new_tag('a', attrs={'href': copy_file_to_report_dir(logFile, logDirectory), 'oncontextmenu': "navigator.clipboard.writeText(this.href); event.preventDefault(); alert('Path copied to clipboard!');"})
                 log_link.string = os.path.basename(item['log_file'])
                 log_cell.append(log_link)
             else:

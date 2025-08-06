@@ -524,31 +524,40 @@ def checkFile(filePath, unzipTo):
         return None
 
 def parseWatsonLog(logDirectory, unzipTo):
-    watsonLogPath = os.path.join(logDirectory, 'watson.log')
-    watsonExists = os.path.exists(watsonLogPath)
-
-    if not watsonExists:
+    watsonDifPath = os.path.join(logDirectory, 'watson.dif')
+    if not os.path.exists(watsonDifPath):
         return []
 
-    errors = set()
-    with open(watsonLogPath, 'r', encoding='utf-8', errors='ignore') as f:
+    error_pairs = set()
+
+    with open(watsonDifPath, 'r', encoding='utf-8', errors='ignore') as f:
         for line in f.readlines():
-            if "DIF" in line and "FAIL" in line and ".dif" in line:
-                line_parts = line.split()
-                dif_file = None
-                for part in line_parts:
-                    if ".dif" in part:
-                        dif_file = part
-                        break
+            if "FAIL" not in line:
+                continue
+
+            dif_match = re.search(r'(\S+\.dif)', line)
+            log_match = re.search(r'(\S+\.log)', line)
+
+            if dif_match:
+                dif_file = dif_match.group(1)
+                base_name = dif_file.rsplit('.dif', 1)[0]
+                log_file = f"{base_name}.log"
                 
-                if dif_file:
-                    base_name = dif_file.split('.dif')[0]
-                    log_file = base_name + ".log"
-                    
-                    dif_path = checkFile(os.path.join(logDirectory, dif_file), unzipTo)
-                    log_path = checkFile(os.path.join(logDirectory, log_file), unzipTo)
+                dif_path = checkFile(os.path.join(logDirectory, dif_file), unzipTo)
+                log_path = checkFile(os.path.join(logDirectory, log_file), unzipTo)
+                
+                if dif_path:
+                    error_pairs.add((dif_path, log_path if log_path else ''))
 
-                    if dif_path and log_path:
-                        errors.add((dif_path, log_path))
+            elif log_match:
+                log_file = log_match.group(1)
+                base_name = log_file.rsplit('.log', 1)[0]
+                dif_file = f"{base_name}.dif"
 
-    return [{"dif_file": dif, "log_file": log} for dif, log in errors]
+                log_path = checkFile(os.path.join(logDirectory, log_file), unzipTo)
+                dif_path = checkFile(os.path.join(logDirectory, dif_file), unzipTo)
+
+                if log_path:
+                    error_pairs.add((dif_path if dif_path else '', log_path))
+
+    return [{"dif_file": dif, "log_file": log} for dif, log in sorted(list(error_pairs))]

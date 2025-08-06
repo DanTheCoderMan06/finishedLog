@@ -4,12 +4,30 @@ import shutil
 import main
 import traceback
 from tqdm import tqdm
+import json
+from datetime import datetime, timedelta
 
 def batch_parse(report_dir, start_dir, max_files=None):
     results = []
     processed_files = 0
     dir_list = os.listdir(start_dir)
     
+    cache_path = os.path.join(report_dir, 'cache.json')
+    try:
+        with open(cache_path, 'r') as f:
+            cache = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        cache = {}
+
+    now = datetime.now()
+    
+    ten_days_ago = now - timedelta(days=10)
+    cache = {
+        dir_name: data
+        for dir_name, data in cache.items()
+        if 'last_accessed' in data and datetime.fromisoformat(data['last_accessed']) >= ten_days_ago
+    }
+
     template_path = os.path.join(os.path.dirname(__file__), 'html_assets', 'template', 'batch_report.html')
     with open(template_path, 'r') as f:
         template_html = f.read()
@@ -33,10 +51,15 @@ def batch_parse(report_dir, start_dir, max_files=None):
                         try:
                             log_contents = main.parseLog(report_dir, full_path)
                             processed_files += 1
-                            results.append({'dir': dir_name, 'status': 'Success', 'details': '', 'log_contents': log_contents})
+                            is_new = dir_name not in cache or (now - datetime.fromisoformat(cache[dir_name]['date'])) < timedelta(days=1)
+                            days_existed = (now - datetime.fromisoformat(cache[dir_name]['date'])).days if dir_name in cache else 0
+                            results.append({'dir': dir_name, 'status': 'Success', 'details': '', 'log_contents': log_contents, 'is_new': is_new, 'days_existed': days_existed})
+                            if dir_name not in cache:
+                                cache[dir_name] = {'date': now.isoformat()}
+                            cache[dir_name]['last_accessed'] = now.isoformat()
                         except Exception as e:
                             error_message = f"{e}\n{traceback.format_exc()}"
-                            results.append({'dir': dir_name, 'status': 'Failed', 'details': error_message, 'log_contents': None})
+                            results.append({'dir': dir_name, 'status': 'Failed', 'details': error_message, 'log_contents': None, 'is_new': False, 'days_existed': 0})
     except KeyboardInterrupt:
         print("\nInterrupted by user. Stopping batch processing.")
 
@@ -67,16 +90,21 @@ def batch_parse(report_dir, start_dir, max_files=None):
         
         status_class = 'status-success' if status == 'Success' else 'status-failure'
         row_class = 'error-highlight' if dir_name in folders_with_errors else ''
+        
+        new_label = " (New)" if result.get('is_new') else ""
 
         if status == 'Success':
             link = f'<a href="{dir_name}/index.html">{dir_name}</a>'
         else:
             link = dir_name
             
+        days_existed = result.get('days_existed', 0)
         table_rows += f"""
         <tr class="{row_class}">
             <td>{link}</td>
             <td class="{status_class}">{status}</td>
+            <td>{new_label}</td>
+            <td>{days_existed}</td>
             <td><pre>{details}</pre></td>
         </tr>
         """
@@ -85,6 +113,9 @@ def batch_parse(report_dir, start_dir, max_files=None):
     
     with open(os.path.join(report_dir, 'index.html'), 'w') as f:
         f.write(final_html)
+
+    with open(cache_path, 'w') as f:
+        json.dump(cache, f, indent=4)
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
