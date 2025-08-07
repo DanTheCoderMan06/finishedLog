@@ -61,15 +61,8 @@ def batch_parse(report_dir, start_dir, max_files=None):
                                 if any('sdbcr' in str(val) for val in log_contents.values()):
                                     details += "Found 'sdbcr' in logs.<br>"
                                 if log_contents.get('trace_errors'):
-                                    error_links = []
-                                    for error in log_contents['trace_errors']:
-                                        file_path = error.get('ospFile') if error.get('ospFile') else error.get('file')
-                                        line_number = error.get('line')
-                                        if file_path and os.path.exists(file_path):
-                                            link = f'<a href="{os.path.relpath(file_path, report_dir)}#line{line_number}" target="_blank">{os.path.basename(file_path)}</a>'
-                                            error_links.append(link)
-                                    if error_links:
-                                        details += f"Incidents: {', '.join(error_links)}<br>"
+                                    error_files = [os.path.basename(error.get('file', 'N/A')) for error in log_contents['trace_errors']]
+                                    details += f"Incidents: {', '.join(error_files)}<br>"
 
                             results.append({'dir': dir_name, 'status': 'Success', 'details': details, 'log_contents': log_contents, 'is_new': is_new, 'days_existed': days_existed})
                             if dir_name not in cache:

@@ -5,7 +5,6 @@ import bisect
 import time
 import gzip
 import shutil
-from html_parser.file_to_html import convert_file_to_html
 
 ROLE_CHANGE_STRING = "SNR role change "
 RU_ID_STRING = "RU_ID"
@@ -58,13 +57,12 @@ def isTimeStamp(timestamp_str):
 #     int: The index of the line containing the timestamp, or None if not found.
 def fetchTimestampFromIndex(lines, index):
     index -= 1
-    while index >= 0:
-        if isTimeStamp(lines[index]):
-            return index
+    while not isTimeStamp(lines[index]):
         index -= 1
-    
-    print(f"Error: No Timestamp found for line before index {index}")
-    return None
+        if index < 0:
+            print("Error: No Timestamp found for line{}".format(index))
+            return
+    return index
 
 # Parses a line from a log file.
 # Args:
@@ -176,7 +174,6 @@ def parseErrorLog(lines, index):
     result['type'] = "error"
     lineWords = [item for item in line.split(' ') if item and not item.isspace()]
     result['parameters'] = list()
-    result['line'] = index + 1
 
     for word in lineWords:
         if ERROR_STRING in word:
@@ -204,59 +201,57 @@ def findParentWithSubdir(target_subdir, start_path):
 find_osp_file_cache = {}
 
 def findOspFile(trace_dir, targetOsp, ruid, dbName, dbId, processName, targetUnzipDirectory):
-    mainOSPFile = f"{dbName}_{processName}_{targetOsp}.trc"
-    osp_path = os.path.join(trace_dir, mainOSPFile)
-    
-    is_gzipped = False
-    if not os.path.exists(osp_path):
-        if os.path.exists(osp_path + ".gz"):
-            osp_path += ".gz"
-            is_gzipped = True
-        else:
-            return ""
+   mainOSPFile = f"{dbName}_{processName}_{targetOsp}.trc"
+   osp_path = os.path.join(trace_dir, mainOSPFile)
+   
+   is_gzipped = False
+   if not os.path.exists(osp_path):
+       if os.path.exists(osp_path + ".gz"):
+           osp_path += ".gz"
+           is_gzipped = True
+       else:
+           return ""
 
-    read_path = osp_path
-    if is_gzipped:
-        dest_path = os.path.join(targetUnzipDirectory, mainOSPFile)
-        if not os.path.exists(dest_path):
-            with gzip.open(osp_path, 'rb') as f_in:
-                with open(dest_path, 'wb') as f_out:
-                    shutil.copyfileobj(f_in, f_out)
-        read_path = dest_path
+   read_path = osp_path
+   if is_gzipped:
+       dest_path = os.path.join(targetUnzipDirectory, mainOSPFile)
+       with gzip.open(osp_path, 'rb') as f_in:
+           if not os.path.exists(dest_path):
+               with open(dest_path, 'wb') as f_out:
+                   shutil.copyfileobj(f_in, f_out)
+       read_path = dest_path
 
-    continued_filename = ""
-    try:
-        with open(read_path, 'r', encoding='utf-8', errors='ignore') as fp:
-            for line in fp.readlines():
-                if CONTINUE_FILE_STRING in line:
-                    words = line.split(" ")
-                    for word in words:
-                        if dbName in word:
-                            continued_filename = os.path.basename(word.strip())
-                            break
-                    if continued_filename:
-                        break
-    except Exception as e:
-        print(f"Error processing file {read_path}: {e}")
+   continued_filename = ""
+   try:
+       with open(read_path, 'r', encoding='utf-8', errors='ignore') as fp:
+           for line in fp.readlines():
+               if CONTINUE_FILE_STRING in line:
+                   words = line.split(" ")
+                   for word in words:
+                       if dbName in word:
+                           continued_filename = os.path.basename(word.strip())
+                           break
+                   if continued_filename:
+                       break
+   except Exception as e:
+       print(f"Error processing file {read_path}: {e}")
 
-    final_trc_path = read_path
-    if continued_filename:
-        continued_path_source = os.path.join(trace_dir, continued_filename)
-        if os.path.exists(continued_path_source):
-            final_trc_path = continued_path_source
-        elif os.path.exists(continued_path_source + ".gz"):
-            continued_path_dest = os.path.join(targetUnzipDirectory, continued_filename)
-            if not os.path.exists(continued_path_dest):
-                with gzip.open(continued_path_source + ".gz", 'rb') as f_in:
-                    with open(continued_path_dest, 'wb') as f_out:
-                        shutil.copyfileobj(f_in, f_out)
-            final_trc_path = continued_path_dest
-    
-    if os.path.exists(final_trc_path):
-        html_path = convert_file_to_html(final_trc_path, targetUnzipDirectory)
-        return html_path if html_path else final_trc_path
-    
-    return ""
+   if not continued_filename:
+       return read_path
+
+   continued_path_source = os.path.join(trace_dir, continued_filename)
+   normalPathExists = os.path.exists(continued_path_source)
+   if normalPathExists:
+       return continued_path_source
+   elif os.path.exists(continued_path_source + ".gz"):
+       continued_path_dest = os.path.join(targetUnzipDirectory, continued_filename)
+       with gzip.open(continued_path_source + ".gz", 'rb') as f_in:
+           if not os.path.exists(continued_path_dest):
+               with open(continued_path_dest, 'wb') as f_out:
+                   shutil.copyfileobj(f_in, f_out)
+       return continued_path_dest
+   
+   return read_path
 
 
 
@@ -297,26 +292,13 @@ def parseAllOtherEvents(logFileContent, ruidList, dbName, dbId, logFilePath, inc
                             trace_parent_dir = unzipPath
                             break
                 if trace_parent_dir:
-                    osp_file_path = findOspFile(os.path.join(trace_parent_dir, 'trace'), lineInfo['ospid'], fetchRUIDFromLine(line), dbLogNames[0], dbId,lineInfo['process_name'], targetUnzipDirectory)
-                    lineInfo['ospFile'] = osp_file_path
-                    if osp_file_path and '.html' in osp_file_path:
-                        try:
-                            with open(osp_file_path.replace('.html', ''), 'r', encoding='utf-8', errors='ignore') as f:
-                                for i, l in enumerate(f):
-                                    if "error" in l.lower():
-                                        lineInfo['line'] = i + 1
-                                        break
-                        except:
-                            pass
+                    lineInfo['ospFile'] = findOspFile(os.path.join(trace_parent_dir, 'trace'), lineInfo['ospid'], fetchRUIDFromLine(line), dbLogNames[0], dbId,lineInfo['process_name'], targetUnzipDirectory)
                 else:
                     print(f"[{time.time()}] parseAllOtherEvents: 'trace' parent directory not found for '{logFilePath}' when searching for ospFile")
         else:
             continue
         lineInfo['original'] = line
-        timestamp_index = fetchTimestampFromIndex(logFileContent, i)
-        if timestamp_index is None:
-            continue
-        lineInfo['timestamp'] = logFileContent[timestamp_index].strip()
+        lineInfo['timestamp'] = logFileContent[fetchTimestampFromIndex(logFileContent, i)].strip()
         lineInfo['dbName'] = dbName
         lineInfo['dbId'] = dbId
         ruid = fetchRUIDFromLine(line)
@@ -418,8 +400,7 @@ def parseHistory(allRUIDs, rmdbs, logFiles, dbIds, directoryName):
 
 def checkFile(filePath, unzipTo):
     if os.path.exists(filePath):
-        html_path = convert_file_to_html(filePath, unzipTo)
-        return html_path if html_path else filePath
+        return filePath
     elif os.path.exists(filePath + ".gz"):
         gz_path = filePath + ".gz"
         dest_path = os.path.join(unzipTo, os.path.basename(filePath))
@@ -427,8 +408,7 @@ def checkFile(filePath, unzipTo):
             if not os.path.exists(dest_path):
                 with open(dest_path, 'wb') as f_out:
                     shutil.copyfileobj(f_in, f_out)
-        html_path = convert_file_to_html(dest_path, unzipTo)
-        return html_path if html_path else dest_path
+        return dest_path
     else:
         return None
     
@@ -454,15 +434,7 @@ def parseWatsonLog(logDirectory, unzipTo):
                 trc_file = trc_match.group(1)
                 trc_path = checkFile(os.path.join(logDirectory, trc_file), unzipTo)
                 if trc_path:
-                    entry = {'file': trc_path, 'line': 0}
-                    try:
-                        with open(trc_path, 'r', encoding='utf-8', errors='ignore') as trc_fp:
-                            for i, trc_line in enumerate(trc_fp.readlines()):
-                                if "error" in trc_line.lower():
-                                    entry['line'] = i + 1
-                                    break
-                    except Exception as e:
-                        print(f"Error reading {trc_path} to find error line: {e}")
+                    entry = {'file': trc_path}
                     continued_log_path_str = ''
                     try:
                         with open(trc_path, 'r', encoding='utf-8', errors='ignore') as trc_fp:
@@ -500,16 +472,7 @@ def parseWatsonLog(logDirectory, unzipTo):
                 log_path = checkFile(os.path.join(logDirectory, log_file), unzipTo)
                 
                 if dif_path:
-                    entry = {'dif_file': dif_path, 'log_file': log_path if log_path else '', 'line': 0}
-                    if log_path:
-                        try:
-                            with open(log_path, 'r', encoding='utf-8', errors='ignore') as log_fp:
-                                for i, log_line in enumerate(log_fp.readlines()):
-                                    if "error" in log_line.lower():
-                                        entry['line'] = i + 1
-                                        break
-                        except Exception as e:
-                            print(f"Error reading {log_path} to find error line: {e}")
+                    entry = {'dif_file': dif_path, 'log_file': log_path if log_path else ''}
                     entry_tuple = tuple(sorted(entry.items()))
                     if entry_tuple not in seen_errors:
                         watson_errors.append(entry)
@@ -524,16 +487,7 @@ def parseWatsonLog(logDirectory, unzipTo):
                 dif_path = checkFile(os.path.join(logDirectory, dif_file), unzipTo)
 
                 if log_path:
-                    entry = {'dif_file': dif_path if dif_path else '', 'log_file': log_path, 'line': 0}
-                    if log_path:
-                        try:
-                            with open(log_path, 'r', encoding='utf-8', errors='ignore') as log_fp:
-                                for i, log_line in enumerate(log_fp.readlines()):
-                                    if "error" in log_line.lower():
-                                        entry['line'] = i + 1
-                                        break
-                        except Exception as e:
-                            print(f"Error reading {log_path} to find error line: {e}")
+                    entry = {'dif_file': dif_path if dif_path else '', 'log_file': log_path}
                     entry_tuple = tuple(sorted(entry.items()))
                     if entry_tuple not in seen_errors:
                         watson_errors.append(entry)
