@@ -25,6 +25,8 @@ th, td {
     padding: 12px;
     border: 1px solid #ddd;
     text-align: left;
+    max-width: 300px; /* Adjust as needed */
+    word-wrap: break-word;
 }
 
 th {

@@ -12,7 +12,7 @@ def batch_parse(report_dir, start_dir, max_files=None):
     processed_files = 0
     dir_list = os.listdir(start_dir)
     
-    cache_path = os.path.join(report_dir, 'cache.json')
+    cache_path = os.path.join(os.path.dirname(report_dir), 'cache.json')
     try:
         with open(cache_path, 'r') as f:
             cache = json.load(f)
@@ -53,7 +53,25 @@ def batch_parse(report_dir, start_dir, max_files=None):
                             processed_files += 1
                             is_new = dir_name not in cache
                             days_existed = (now - datetime.fromisoformat(cache[dir_name]['date'])).days if dir_name in cache else 0
-                            results.append({'dir': dir_name, 'status': 'Success', 'details': '', 'log_contents': log_contents, 'is_new': is_new, 'days_existed': days_existed})
+                            
+                            details = ""
+                            if log_contents:
+                                if any('blowout' in str(val) for val in log_contents.values()):
+                                    details += "Found 'blowout' in logs.<br>"
+                                if any('sdbcr' in str(val) for val in log_contents.values()):
+                                    details += "Found 'sdbcr' in logs.<br>"
+                                if log_contents.get('trace_errors'):
+                                    error_links = []
+                                    for error in log_contents['trace_errors']:
+                                        file_path = error.get('ospFile') if error.get('ospFile') else error.get('file')
+                                        line_number = error.get('line')
+                                        if file_path and os.path.exists(file_path):
+                                            link = f'<a href="{os.path.relpath(file_path, report_dir)}#line{line_number}" target="_blank">{os.path.basename(file_path)}</a>'
+                                            error_links.append(link)
+                                    if error_links:
+                                        details += f"Incidents: {', '.join(error_links)}<br>"
+
+                            results.append({'dir': dir_name, 'status': 'Success', 'details': details, 'log_contents': log_contents, 'is_new': is_new, 'days_existed': days_existed})
                             if dir_name not in cache:
                                 cache[dir_name] = {'date': now.isoformat()}
                             cache[dir_name]['last_accessed'] = now.isoformat()
@@ -84,20 +102,27 @@ def batch_parse(report_dir, start_dir, max_files=None):
 
     for result in results:
         dir_name = result['dir']
-        status = result['status']
+        original_status = result['status']
         details = result['details']
         
-        if status == 'Cached':
+        if original_status == 'Cached':
             status_class = 'status-cached'
-        else:
-            status_class = 'status-success' if status == 'Success' else 'status-failure'
+        elif original_status == 'Success':
+            status_class = 'status-success'
+        else: # Failed
+            status_class = 'status-failure'
         
+        status = original_status
         is_new = result.get('is_new')
         row_class = 'new-folder' if is_new else ''
 
-        new_label = " (New)" if is_new else ""
+        if is_new:
+            if original_status == 'Success':
+                status = '(New) Success'
+            elif original_status == 'Failed':
+                status = '(New) Fail'
 
-        if status == 'Success' or status == 'Cached':
+        if original_status == 'Success' or original_status == 'Cached':
             link = f'<a href="{dir_name}/index.html">{dir_name}</a>'
         else:
             link = dir_name
@@ -107,9 +132,8 @@ def batch_parse(report_dir, start_dir, max_files=None):
         <tr class="{row_class}">
             <td>{link}</td>
             <td class="{status_class}">{status}</td>
-            <td>{new_label}</td>
             <td>{days_existed}</td>
-            <td><pre>{details}</pre></td>
+            <td>{details}</td>
         </tr>
         """
     
@@ -120,6 +144,9 @@ def batch_parse(report_dir, start_dir, max_files=None):
 
     with open(cache_path, 'w') as f:
         json.dump(cache, f, indent=4)
+
+    # cleanup_folders(report_dir, start_dir)
+
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
