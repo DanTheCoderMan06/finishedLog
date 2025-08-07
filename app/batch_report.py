@@ -64,13 +64,13 @@ def batch_parse(report_dir, start_dir, max_files=None):
         print("\nInterrupted by user. Stopping batch processing.")
 
     table_rows = ""
-    folders_with_errors = []
     processed_dirs = {result['dir'] for result in results}
 
     for dir_name, data in cache.items():
         if dir_name not in processed_dirs:
             report_path = os.path.join(report_dir, dir_name, 'index.html')
-            if os.path.exists(report_path):
+            log_path = os.path.join(start_dir, dir_name)
+            if os.path.exists(report_path) and os.path.isdir(log_path):
                 days_existed = (now - datetime.fromisoformat(data['date'])).days
                 results.append({
                     'dir': dir_name,
@@ -81,23 +81,6 @@ def batch_parse(report_dir, start_dir, max_files=None):
                     'days_existed': days_existed
                 })
 
-    for result in results:
-        if result['status'] == 'Success' and result['log_contents']:
-            has_error = False
-            history = result['log_contents'].get('history', {})
-            for ruid, shard_groups in history.items():
-                for sg, events in shard_groups.items():
-                    for event in events:
-                        if event.get('errors'):
-                            has_error = True
-                            break
-                    if has_error:
-                        break
-                if has_error:
-                    break
-            
-            if has_error and result['dir'] not in folders_with_errors:
-                folders_with_errors.append(result['dir'])
 
     for result in results:
         dir_name = result['dir']
@@ -108,9 +91,11 @@ def batch_parse(report_dir, start_dir, max_files=None):
             status_class = 'status-cached'
         else:
             status_class = 'status-success' if status == 'Success' else 'status-failure'
-        row_class = 'error-highlight' if dir_name in folders_with_errors else ''
         
-        new_label = " (New)" if result.get('is_new') else ""
+        is_new = result.get('is_new')
+        row_class = 'new-folder' if is_new else ''
+
+        new_label = " (New)" if is_new else ""
 
         if status == 'Success' or status == 'Cached':
             link = f'<a href="{dir_name}/index.html">{dir_name}</a>'
