@@ -308,6 +308,8 @@ def createLogFolder(results, results_dir):
                     if 'ospFile' in history_item and history_item['ospFile']:
                         osp_path = history_item['ospFile']
                         link_path = copy_file_to_report_dir(osp_path, logDirectory)
+                        if 'scrollIndex' in history_item:
+                            link_path += f"#line{history_item['scrollIndex']}"
                         error_file = soup.new_tag('a', attrs={'href': link_path, 'oncontextmenu': "navigator.clipboard.writeText(this.href); event.preventDefault(); alert('Path copied to clipboard!');"})
                         error_file.string = history_item['timestamp'].split('+')[0]
                         ts_cell.append(error_file)

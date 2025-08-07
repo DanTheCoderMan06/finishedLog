@@ -5,6 +5,7 @@ import bisect
 import time
 import gzip
 import shutil
+import html
 
 ROLE_CHANGE_STRING = "SNR role change "
 RU_ID_STRING = "RU_ID"
@@ -24,6 +25,37 @@ PROCESS_STRING = "process_name="
 CONTINUE_FILE_STRING = "*** TRACE CONTINUES IN FILE "
 CONTINUED_FROM_FILE_DUMP_STRING = "Dump continued from file: "
 FILE_STRING = "FILE"
+
+def convert_file_to_html(source_path, output_dir):
+    """
+    Converts a text file to an HTML file with each line in a <p> tag with an ID.
+    """
+    if not os.path.exists(source_path):
+        return None
+
+    base_name = os.path.basename(source_path)
+    html_file_name = f"{base_name}.html"
+    html_path = os.path.join(output_dir, html_file_name)
+
+    try:
+        with open(source_path, 'r', encoding='utf-8', errors='ignore') as f_in:
+            lines = f_in.readlines()
+
+        with open(html_path, 'w', encoding='utf-8') as f_out:
+            f_out.write('<!DOCTYPE html>\n<html lang="en">\n<head>\n')
+            f_out.write(f'<title>{html.escape(base_name)}</title>\n')
+            f_out.write('<meta charset="UTF-8">\n')
+            f_out.write('<style>p { margin: 0; padding: 0; }</style>\n')
+            f_out.write('</head>\n<body>\n')
+            for i, line in enumerate(lines):
+                f_out.write(f'<p id="line{i+1}">{html.escape(line)}</p>\n')
+            f_out.write('</body>\n</html>')
+        
+        return html_path
+    except Exception as e:
+        print(f"Error converting {source_path} to HTML: {e}")
+        breakpoint()
+        return None
 
 def rmdbExists(rmdbList, target):
     for rmdb in rmdbList:
@@ -200,7 +232,24 @@ def findParentWithSubdir(target_subdir, start_path):
 
 find_osp_file_cache = {}
 
-def findOspFile(trace_dir, targetOsp, ruid, dbName, dbId, processName, targetUnzipDirectory):
+def findNearestTimestamp(filePath, target):
+    foundLine = 0
+    targetTimeStamp = datetime.datetime.fromisoformat(target).replace(tzinfo = None)
+    with open(filePath, 'r', encoding='utf-8', errors='ignore') as fp:
+        for i, line in enumerate(fp):
+            for word in line.split():
+                try:
+                    currentStamp = datetime.datetime.fromisoformat(word.strip()).replace(tzinfo = None)
+                    if currentStamp > targetTimeStamp:
+                        return foundLine
+                    foundLine = i
+                except ValueError:
+                    pass
+    return foundLine
+
+
+
+def findOspFile(trace_dir, targetOsp, ruid, dbName, dbId, processName, targetUnzipDirectory, foundTimestamp):
    mainOSPFile = f"{dbName}_{processName}_{targetOsp}.trc"
    osp_path = os.path.join(trace_dir, mainOSPFile)
    
@@ -210,7 +259,7 @@ def findOspFile(trace_dir, targetOsp, ruid, dbName, dbId, processName, targetUnz
            osp_path += ".gz"
            is_gzipped = True
        else:
-           return ""
+           return "", 0
 
    read_path = osp_path
    if is_gzipped:
@@ -237,21 +286,28 @@ def findOspFile(trace_dir, targetOsp, ruid, dbName, dbId, processName, targetUnz
        print(f"Error processing file {read_path}: {e}")
 
    if not continued_filename:
-       return read_path
+       return convert_file_to_html(read_path, targetUnzipDirectory), 0
 
    continued_path_source = os.path.join(trace_dir, continued_filename)
    normalPathExists = os.path.exists(continued_path_source)
    if normalPathExists:
-       return continued_path_source
+       new_html_file = convert_file_to_html(continued_path_source, targetUnzipDirectory)
+       targetLine = findNearestTimestamp(new_html_file, foundTimestamp)
+       breakpoint()
+       return continued_path_source, 0
    elif os.path.exists(continued_path_source + ".gz"):
        continued_path_dest = os.path.join(targetUnzipDirectory, continued_filename)
        with gzip.open(continued_path_source + ".gz", 'rb') as f_in:
            if not os.path.exists(continued_path_dest):
                with open(continued_path_dest, 'wb') as f_out:
                    shutil.copyfileobj(f_in, f_out)
-       return continued_path_dest
+       
+       new_html_file = convert_file_to_html(continued_path_dest, targetUnzipDirectory )
+       targetLine = findNearestTimestamp(new_html_file, foundTimestamp)
+
+       return new_html_file, targetLine
    
-   return read_path
+   return read_path, 0
 
 
 
@@ -292,13 +348,13 @@ def parseAllOtherEvents(logFileContent, ruidList, dbName, dbId, logFilePath, inc
                             trace_parent_dir = unzipPath
                             break
                 if trace_parent_dir:
-                    lineInfo['ospFile'] = findOspFile(os.path.join(trace_parent_dir, 'trace'), lineInfo['ospid'], fetchRUIDFromLine(line), dbLogNames[0], dbId,lineInfo['process_name'], targetUnzipDirectory)
+                    lineInfo['ospFile'], lineInfo['scrollIndex'] = findOspFile(os.path.join(trace_parent_dir, 'trace'), lineInfo['ospid'], fetchRUIDFromLine(line), dbLogNames[0], dbId,lineInfo['process_name'], targetUnzipDirectory, logFileContent[fetchTimestampFromIndex(logFileContent, i)].strip())
                 else:
                     print(f"[{time.time()}] parseAllOtherEvents: 'trace' parent directory not found for '{logFilePath}' when searching for ospFile")
         else:
             continue
-        lineInfo['original'] = line
         lineInfo['timestamp'] = logFileContent[fetchTimestampFromIndex(logFileContent, i)].strip()
+        lineInfo['original'] = line
         lineInfo['dbName'] = dbName
         lineInfo['dbId'] = dbId
         ruid = fetchRUIDFromLine(line)
