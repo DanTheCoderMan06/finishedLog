@@ -233,19 +233,24 @@ def findParentWithSubdir(target_subdir, start_path):
 find_osp_file_cache = {}
 
 def findNearestTimestamp(filePath, target):
-    foundLine = 0
-    targetTimeStamp = datetime.datetime.fromisoformat(target).replace(tzinfo = None)
+    last_line_before = 0
+    targetTimeStamp = datetime.datetime.fromisoformat(target).replace(tzinfo=None)
+
     with open(filePath, 'r', encoding='utf-8', errors='ignore') as fp:
         for i, line in enumerate(fp):
             for word in line.split():
                 try:
-                    currentStamp = datetime.datetime.fromisoformat(word.strip()).replace(tzinfo = None)
-                    if currentStamp > targetTimeStamp:
-                        return foundLine
-                    foundLine = i
+                    currentStamp = datetime.datetime.fromisoformat(word.strip()).replace(tzinfo=None)
+                    delta = abs((currentStamp - targetTimeStamp).total_seconds())
+                    if delta < 2:
+                        return i
+                    
+                    if currentStamp <= targetTimeStamp:
+                        last_line_before = i
                 except ValueError:
                     pass
-    return foundLine
+    
+    return last_line_before
 
 
 
@@ -260,7 +265,7 @@ def findOspFile(trace_dir, targetOsp, ruid, dbName, dbId, processName, targetUnz
            is_gzipped = True
        else:
            return "", 0
-
+ 
    read_path = osp_path
    if is_gzipped:
        dest_path = os.path.join(targetUnzipDirectory, mainOSPFile)
@@ -269,7 +274,7 @@ def findOspFile(trace_dir, targetOsp, ruid, dbName, dbId, processName, targetUnz
                with open(dest_path, 'wb') as f_out:
                    shutil.copyfileobj(f_in, f_out)
        read_path = dest_path
-
+ 
    continued_filename = ""
    try:
        with open(read_path, 'r', encoding='utf-8', errors='ignore') as fp:
@@ -284,17 +289,17 @@ def findOspFile(trace_dir, targetOsp, ruid, dbName, dbId, processName, targetUnz
                        break
    except Exception as e:
        print(f"Error processing file {read_path}: {e}")
-
+ 
    if not continued_filename:
-       return convert_file_to_html(read_path, targetUnzipDirectory), 0
-
+       html_path = convert_file_to_html(read_path, targetUnzipDirectory)
+       targetLine = findNearestTimestamp(read_path, foundTimestamp)
+       return html_path, targetLine + 1
+ 
    continued_path_source = os.path.join(trace_dir, continued_filename)
-   normalPathExists = os.path.exists(continued_path_source)
-   if normalPathExists:
+   if os.path.exists(continued_path_source):
        new_html_file = convert_file_to_html(continued_path_source, targetUnzipDirectory)
-       targetLine = findNearestTimestamp(new_html_file, foundTimestamp)
-       breakpoint()
-       return continued_path_source, 0
+       targetLine = findNearestTimestamp(continued_path_source, foundTimestamp)
+       return new_html_file, targetLine + 1
    elif os.path.exists(continued_path_source + ".gz"):
        continued_path_dest = os.path.join(targetUnzipDirectory, continued_filename)
        with gzip.open(continued_path_source + ".gz", 'rb') as f_in:
@@ -302,12 +307,13 @@ def findOspFile(trace_dir, targetOsp, ruid, dbName, dbId, processName, targetUnz
                with open(continued_path_dest, 'wb') as f_out:
                    shutil.copyfileobj(f_in, f_out)
        
-       new_html_file = convert_file_to_html(continued_path_dest, targetUnzipDirectory )
-       targetLine = findNearestTimestamp(new_html_file, foundTimestamp)
-
-       return new_html_file, targetLine
+       new_html_file = convert_file_to_html(continued_path_dest, targetUnzipDirectory)
+       targetLine = findNearestTimestamp(continued_path_dest, foundTimestamp)
+       return new_html_file, targetLine + 1
    
-   return read_path, 0
+   html_path = convert_file_to_html(read_path, targetUnzipDirectory)
+   targetLine = findNearestTimestamp(read_path, foundTimestamp)
+   return html_path, targetLine + 1
 
 
 
