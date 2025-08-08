@@ -5,7 +5,6 @@ import html_parser
 import file_parser
 import gzip
 import shutil
-import elevate
 
 # ./scratch/reports C:\\Users\\danii\\OneDrive\\Documents\\mytar2\\lrgdbcongsmshsnr17
 
