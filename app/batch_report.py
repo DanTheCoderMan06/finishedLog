@@ -7,10 +7,14 @@ from tqdm import tqdm
 import json
 from datetime import datetime, timedelta
 
-def batch_parse(report_dir, start_dir, max_files=None):
+def batch_parse(report_dir, start_dir, max_files=None, ignore_list=None):
     results = []
     processed_files = 0
-    dir_list = os.listdir(start_dir)
+    
+    if ignore_list is None:
+        ignore_list = []
+
+    dir_list = [d for d in os.listdir(start_dir) if d not in ignore_list]
     
     cache_path = os.path.join(os.path.dirname(report_dir), 'cache.json')
     try:
@@ -137,7 +141,11 @@ def batch_parse(report_dir, start_dir, max_files=None):
         </tr>
         """
     
+    new_reports_count = sum(1 for r in results if r.get('is_new'))
+    
     final_html = template_html.replace('{table_rows}', table_rows)
+    final_html = final_html.replace('{source_dir}', start_dir)
+    final_html = final_html.replace('{new_reports_count}', str(new_reports_count))
     
     with open(os.path.join(report_dir, 'index.html'), 'w') as f:
         f.write(final_html)
@@ -150,15 +158,23 @@ def batch_parse(report_dir, start_dir, max_files=None):
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
-        raise ValueError("Usage: python batch_report.py <report_directory> <start_directory> [max_files]")
+        raise ValueError("Usage: python batch_report.py <report_directory> <start_directory> [max_files] [ignore_list]")
     report_directory = sys.argv[1]
     start_directory = sys.argv[2]
     max_files_arg = None
+    ignore_list_arg = None
+
     if len(sys.argv) > 3:
         try:
             max_files_arg = int(sys.argv[3])
-        except ValueError:
-            raise ValueError("max_files must be an integer.")
-        
+        except (ValueError, IndexError):
+            max_files_arg = None
 
-    batch_parse(report_directory, start_directory, max_files_arg)
+    if len(sys.argv) > 4:
+        try:
+            with open(sys.argv[4], 'r') as f:
+                ignore_list_arg = [line.strip() for line in f]
+        except (FileNotFoundError, IndexError):
+            ignore_list_arg = None
+
+    batch_parse(report_directory, start_directory, max_files_arg, ignore_list_arg)
