@@ -202,6 +202,58 @@ def createLogFolder(results, results_dir):
         
         container.append(watson_container)
 
+    if 'gsm_errors' in results and results['gsm_errors']:
+        container = soup.find('div', class_='container')
+        gsm_title = soup.new_tag('h1', attrs={'class': 'main-title'})
+        gsm_title.string = "GSM Errors"
+        container.append(gsm_title)
+        gsm_container = soup.new_tag('div', attrs={'class': 'table-container'})
+        gsm_table = soup.new_tag('table')
+        gsm_thead = soup.new_tag('thead')
+        gsm_tr = soup.new_tag('tr')
+        headers = ["Timestamp", "Request Type", "Payload", "Target", "Message"]
+        for header_text in headers:
+            gsm_th = soup.new_tag('th')
+            gsm_th.string = header_text
+            gsm_tr.append(gsm_th)
+        gsm_thead.append(gsm_tr)
+        gsm_table.append(gsm_thead)
+        gsm_tbody = soup.new_tag('tbody')
+        for item in results['gsm_errors']:
+            new_row = soup.new_tag('tr')
+            
+            ts_cell = soup.new_tag('td')
+            ts_cell.string = item.get('timestamp', '')
+            new_row.append(ts_cell)
+            
+            req_cell = soup.new_tag('td')
+            req_cell.string = item.get('request_type', '')
+            new_row.append(req_cell)
+            
+            payload_cell = soup.new_tag('td')
+            payload_cell.string = item.get('payload', '')
+            new_row.append(payload_cell)
+            
+            target_cell = soup.new_tag('td')
+            target_cell.string = item.get('target', '')
+            new_row.append(target_cell)
+            
+            msg_cell = soup.new_tag('td', attrs={'class': 'gsm-message-cell'})
+            msg_span = soup.new_tag('span')
+            msg_span.string = item.get('message', '')
+            msg_cell.append(msg_span)
+            
+            tooltip_div = soup.new_tag('div', attrs={'class': 'gsm-tooltip'})
+            tooltip_div.string = item.get('full_text', '')
+            msg_cell.append(tooltip_div)
+            new_row.append(msg_cell)
+            
+            gsm_tbody.append(new_row)
+        
+        gsm_table.append(gsm_tbody)
+        gsm_container.append(gsm_table)
+        container.append(gsm_container)
+
     resultingHTML = soup.prettify()
 
     with open(os.path.join(logDirectory,"index.html"), 'w', encoding='utf-8') as f:

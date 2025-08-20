@@ -70,7 +70,7 @@ def batch_parse(report_dir, start_dir, max_files=None, ignore_list=None):
                                         file_path = error.get('ospFile') if error.get('ospFile') else error.get('file')
                                         line_number = error.get('line')
                                         if file_path and os.path.exists(file_path):
-                                            link = f'<a href="{os.path.relpath(file_path, report_dir)}#line{line_number}" target="_blank">{os.path.basename(file_path)}</a>'
+                                            link = f'<a href="{os.path.join(dir_name, os.path.basename(file_path))}#line{line_number}" target="_blank">{os.path.basename(file_path)}</a>'
                                             error_links.append(link)
                                     if error_links:
                                         details += f"Incidents: {', '.join(error_links)}<br>"

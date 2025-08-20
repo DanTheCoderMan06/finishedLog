@@ -255,7 +255,7 @@ def findNearestTimestamp(filePath, target):
 
 
 def findOspFile(trace_dir, targetOsp, ruid, dbName, dbId, processName, targetUnzipDirectory, foundTimestamp):
-   mainOSPFile = f"{dbName}_{processName}_{targetOsp}.trc"
+   mainOSPFile = f"{dbName}_{processName.lower()}_{targetOsp}.trc"
    osp_path = os.path.join(trace_dir, mainOSPFile)
    
    is_gzipped = False

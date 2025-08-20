@@ -133,6 +133,7 @@ def parseLog(logDirectory, directoryName):
     logContents['allRUIDS'] = allRUIDs
     logContents['logDirectory'] = directoryName
     logContents['trace_errors'], logContents['watson_errors'] = log_parser.parseWatsonLog(directoryName, toUnzip)
+    logContents['gsm_errors'] = log_parser.parse_gsm_logs(report_dir, directoryName)
 
     print("Creating Log Folder")
 
