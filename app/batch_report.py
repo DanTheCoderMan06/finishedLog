@@ -25,12 +25,6 @@ def batch_parse(report_dir, start_dir, max_files=None, ignore_list=None):
 
     now = datetime.now()
     
-    ten_days_ago = now - timedelta(days=10)
-    cache = {
-        dir_name: data
-        for dir_name, data in cache.items()
-        if 'last_accessed' in data and datetime.fromisoformat(data['last_accessed']) >= ten_days_ago
-    }
 
     template_path = os.path.join(os.path.dirname(__file__), 'html_assets', 'template', 'batch_report.html')
     with open(template_path, 'r') as f:
@@ -56,7 +50,21 @@ def batch_parse(report_dir, start_dir, max_files=None, ignore_list=None):
                             log_contents = main.parseLog(report_dir, full_path)
                             processed_files += 1
                             is_new = dir_name not in cache
-                            days_existed = (now - datetime.fromisoformat(cache[dir_name]['date'])).days if dir_name in cache else 0
+                            if dir_name in cache:
+                                last_reset_str = cache[dir_name].get('lastReset')
+                                if last_reset_str:
+                                    last_reset = datetime.fromisoformat(last_reset_str)
+                                    if (now - last_reset).days > 10:
+                                        cache[dir_name]['lastReset'] = now.isoformat()
+                                        days_existed = 0
+                                    else:
+                                        days_existed = (now - last_reset).days
+                                else:
+                                    last_reset = datetime.fromisoformat(cache[dir_name]['date'])
+                                    cache[dir_name]['lastReset'] = cache[dir_name]['date']
+                                    days_existed = (now - last_reset).days
+                            else:
+                                days_existed = 0
                             
                             details = ""
                             if log_contents:
@@ -77,7 +85,7 @@ def batch_parse(report_dir, start_dir, max_files=None, ignore_list=None):
 
                             results.append({'dir': dir_name, 'status': 'Success', 'details': details, 'log_contents': log_contents, 'is_new': is_new, 'days_existed': days_existed})
                             if dir_name not in cache:
-                                cache[dir_name] = {'date': now.isoformat()}
+                                cache[dir_name] = {'date': now.isoformat(), 'lastReset': now.isoformat()}
                             cache[dir_name]['last_accessed'] = now.isoformat()
                         except Exception as e:
                             error_message = f"{e}\n{traceback.format_exc()}"
@@ -93,7 +101,18 @@ def batch_parse(report_dir, start_dir, max_files=None, ignore_list=None):
             report_path = os.path.join(report_dir, dir_name, 'index.html')
             log_path = os.path.join(start_dir, dir_name)
             if os.path.exists(report_path) and os.path.isdir(log_path):
-                days_existed = (now - datetime.fromisoformat(data['date'])).days
+                last_reset_str = data.get('lastReset')
+                if last_reset_str:
+                    last_reset = datetime.fromisoformat(last_reset_str)
+                    if (now - last_reset).days > 10:
+                        data['lastReset'] = now.isoformat()
+                        days_existed = 0
+                    else:
+                        days_existed = (now - last_reset).days
+                else:
+                    last_reset = datetime.fromisoformat(data['date'])
+                    data['lastReset'] = data['date']
+                    days_existed = (now - last_reset).days
                 results.append({
                     'dir': dir_name,
                     'status': 'Cached',

@@ -28,12 +28,14 @@ def extract_log_file(gsm_sub_dir, report_dir):
 
             if file_name.endswith('.gz'):
                 dest_path = dest_path[:-3] # Remove .gz
-                with gzip.open(log_file_path, 'rb') as f_in:
-                    with open(dest_path, 'wb') as f_out:
-                        shutil.copyfileobj(f_in, f_out)
+                if not os.path.exists(dest_path):
+                    with gzip.open(log_file_path, 'rb') as f_in:
+                        with open(dest_path, 'wb') as f_out:
+                            shutil.copyfileobj(f_in, f_out)
                 return dest_path
             else:
-                shutil.copy(log_file_path, dest_path)
+                if not os.path.exists(dest_path):
+                    shutil.copy(log_file_path, dest_path)
                 return dest_path
     return None
 
