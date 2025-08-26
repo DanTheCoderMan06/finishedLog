@@ -7,14 +7,11 @@ from tqdm import tqdm
 import json
 from datetime import datetime, timedelta
 
-def batch_parse(report_dir, start_dir, max_files=None, ignore_list=None):
+def batch_parse(report_dir, start_dir, max_files=None, show_errors=False):
     results = []
     processed_files = 0
-    
-    if ignore_list is None:
-        ignore_list = []
 
-    dir_list = [d for d in os.listdir(start_dir) if d not in ignore_list]
+    dir_list = os.listdir(start_dir)
     
     cache_path = os.path.join(os.path.dirname(report_dir), 'cache.json')
     try:
@@ -51,19 +48,20 @@ def batch_parse(report_dir, start_dir, max_files=None, ignore_list=None):
                             processed_files += 1
                             is_new = dir_name not in cache
                             if dir_name in cache:
-                                last_reset_str = cache[dir_name].get('lastReset')
-                                if last_reset_str:
-                                    last_reset = datetime.fromisoformat(last_reset_str)
-                                    if (now - last_reset).days > 10:
-                                        cache[dir_name]['lastReset'] = now.isoformat()
-                                        days_existed = 0
-                                    else:
-                                        days_existed = (now - last_reset).days
+                                old_last_accessed = cache[dir_name].get('last_accessed')
+                                if old_last_accessed:
+                                    cache[dir_name]['lastReset'] = old_last_accessed
                                 else:
-                                    last_reset = datetime.fromisoformat(cache[dir_name]['date'])
                                     cache[dir_name]['lastReset'] = cache[dir_name]['date']
-                                    days_existed = (now - last_reset).days
+                                cache[dir_name]['last_accessed'] = now.isoformat()
+                                last_reset = datetime.fromisoformat(cache[dir_name]['lastReset'])
+                                if (now - last_reset).days >= 10:
+                                    continue  # drop it
+                                else:
+                                    days_existed = (now - datetime.fromisoformat(cache[dir_name]['date'])).days
                             else:
+                                cache[dir_name] = {'date': now.isoformat(), 'lastReset': now.isoformat()}
+                                cache[dir_name]['last_accessed'] = now.isoformat()
                                 days_existed = 0
                             
                             details = ""
@@ -72,7 +70,7 @@ def batch_parse(report_dir, start_dir, max_files=None, ignore_list=None):
                                     details += "Found 'blowout' in logs.<br>"
                                 if any('sdbcr' in str(val) for val in log_contents.values()):
                                     details += "Found 'sdbcr' in logs.<br>"
-                                if log_contents.get('trace_errors'):
+                                if show_errors and log_contents.get('trace_errors'):
                                     error_links = []
                                     for error in log_contents['trace_errors']:
                                         file_path = error.get('ospFile') if error.get('ospFile') else error.get('file')
@@ -83,13 +81,10 @@ def batch_parse(report_dir, start_dir, max_files=None, ignore_list=None):
                                     if error_links:
                                         details += f"Incidents: {', '.join(error_links)}<br>"
 
-                            results.append({'dir': dir_name, 'status': 'Success', 'details': details, 'log_contents': log_contents, 'is_new': is_new, 'days_existed': days_existed})
-                            if dir_name not in cache:
-                                cache[dir_name] = {'date': now.isoformat(), 'lastReset': now.isoformat()}
-                            cache[dir_name]['last_accessed'] = now.isoformat()
+                            results.append({'dir': dir_name, 'status': 'Success', 'details': details, 'log_contents': log_contents, 'is_new': is_new, 'days_existed': days_existed, 'first_seen': cache[dir_name]['date'], 'last_prev_seen': cache[dir_name]['lastReset'], 'current_date': cache[dir_name]['last_accessed']})
                         except Exception as e:
                             error_message = f"{e}\n{traceback.format_exc()}"
-                            results.append({'dir': dir_name, 'status': 'Failed', 'details': error_message, 'log_contents': None, 'is_new': False, 'days_existed': 0})
+                            results.append({'dir': dir_name, 'status': 'Failed', 'details': error_message, 'log_contents': None, 'is_new': False, 'days_existed': 0, 'first_seen': now.isoformat(), 'last_prev_seen': now.isoformat(), 'current_date': now.isoformat()})
     except KeyboardInterrupt:
         print("\nInterrupted by user. Stopping batch processing.")
 
@@ -101,25 +96,22 @@ def batch_parse(report_dir, start_dir, max_files=None, ignore_list=None):
             report_path = os.path.join(report_dir, dir_name, 'index.html')
             log_path = os.path.join(start_dir, dir_name)
             if os.path.exists(report_path) and os.path.isdir(log_path):
-                last_reset_str = data.get('lastReset')
-                if last_reset_str:
-                    last_reset = datetime.fromisoformat(last_reset_str)
-                    if (now - last_reset).days > 10:
-                        data['lastReset'] = now.isoformat()
-                        days_existed = 0
-                    else:
-                        days_existed = (now - last_reset).days
+                last_reset_str = data.get('lastReset', data['date'])
+                last_reset = datetime.fromisoformat(last_reset_str)
+                if (now - last_reset).days >= 10:
+                    continue  # drop it
                 else:
-                    last_reset = datetime.fromisoformat(data['date'])
-                    data['lastReset'] = data['date']
-                    days_existed = (now - last_reset).days
+                    days_existed = (now - datetime.fromisoformat(data['date'])).days
                 results.append({
                     'dir': dir_name,
                     'status': 'Cached',
                     'details': 'Report loaded from cache.',
                     'log_contents': None,
                     'is_new': False,
-                    'days_existed': days_existed
+                    'days_existed': days_existed,
+                    'first_seen': data['date'],
+                    'last_prev_seen': last_reset_str,
+                    'current_date': data['last_accessed']
                 })
 
 
@@ -135,15 +127,15 @@ def batch_parse(report_dir, start_dir, max_files=None, ignore_list=None):
         else: # Failed
             status_class = 'status-failure'
         
-        status = original_status
         is_new = result.get('is_new')
         row_class = 'new-folder' if is_new else ''
 
-        if is_new:
-            if original_status == 'Success':
-                status = '(New) Success'
-            elif original_status == 'Failed':
-                status = '(New) Fail'
+        if original_status == 'Success':
+            status = 'New' if is_new else 'Existing'
+        elif original_status == 'Failed':
+            status = 'New Failed' if is_new else 'Failed'
+        else:
+            status = original_status
 
         if original_status == 'Success' or original_status == 'Cached':
             link = f'<a href="{dir_name}/index.html">{dir_name}</a>'
@@ -151,10 +143,16 @@ def batch_parse(report_dir, start_dir, max_files=None, ignore_list=None):
             link = dir_name
             
         days_existed = result.get('days_existed', 0)
+        first_seen = result.get('first_seen', '')
+        last_prev_seen = result.get('last_prev_seen', '')
+        current_date = result.get('current_date', '')
         table_rows += f"""
         <tr class="{row_class}">
             <td>{link}</td>
             <td class="{status_class}">{status}</td>
+            <td>{first_seen}</td>
+            <td>{last_prev_seen}</td>
+            <td>{current_date}</td>
             <td>{days_existed}</td>
             <td>{details}</td>
         </tr>
@@ -177,11 +175,11 @@ def batch_parse(report_dir, start_dir, max_files=None, ignore_list=None):
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
-        raise ValueError("Usage: python batch_report.py <report_directory> <start_directory> [max_files] [ignore_list]")
+        raise ValueError("Usage: python batch_report.py <report_directory> <start_directory> [max_files] [show_errors]")
     report_directory = sys.argv[1]
     start_directory = sys.argv[2]
     max_files_arg = None
-    ignore_list_arg = None
+    show_errors_arg = False
 
     if len(sys.argv) > 3:
         try:
@@ -191,9 +189,8 @@ if __name__ == "__main__":
 
     if len(sys.argv) > 4:
         try:
-            with open(sys.argv[4], 'r') as f:
-                ignore_list_arg = [line.strip() for line in f]
-        except (FileNotFoundError, IndexError):
-            ignore_list_arg = None
+            show_errors_arg = sys.argv[4].lower() == 'true'
+        except (ValueError, IndexError):
+            show_errors_arg = False
 
-    batch_parse(report_directory, start_directory, max_files_arg, ignore_list_arg)
+    batch_parse(report_directory, start_directory, max_files_arg, show_errors_arg)

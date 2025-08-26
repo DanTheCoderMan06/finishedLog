@@ -233,24 +233,78 @@ def findParentWithSubdir(target_subdir, start_path):
 find_osp_file_cache = {}
 
 def findNearestTimestamp(filePath, target):
-    last_line_before = 0
     targetTimeStamp = datetime.datetime.fromisoformat(target).replace(tzinfo=None)
+    file_size = os.path.getsize(filePath)
 
-    with open(filePath, 'r', encoding='utf-8', errors='ignore') as fp:
-        for i, line in enumerate(fp):
-            for word in line.split():
-                try:
-                    currentStamp = datetime.datetime.fromisoformat(word.strip()).replace(tzinfo=None)
-                    delta = abs((currentStamp - targetTimeStamp).total_seconds())
-                    if delta < 2:
-                        return i
-                    
-                    if currentStamp <= targetTimeStamp:
-                        last_line_before = i
-                except ValueError:
-                    pass
-    
-    return last_line_before
+    def get_line_at_byte(fp, byte_pos):
+        fp.seek(byte_pos)
+        if byte_pos > 0:
+            fp.readline()  # skip partial line
+        line_start = fp.tell()
+        line = fp.readline().decode('utf-8', errors='ignore').strip()
+        return line, line_start
+
+    def extract_timestamp(line):
+        for word in line.split():
+            try:
+                return datetime.datetime.fromisoformat(word.strip()).replace(tzinfo=None)
+            except ValueError:
+                pass
+        return None
+
+    with open(filePath, 'rb') as fp:
+        low = 0
+        high = file_size
+        best_byte = 0
+        best_delta = float('inf')
+
+        # Binary search for the closest timestamp
+        while low < high:
+            mid = (low + high) // 2
+            line, line_start = get_line_at_byte(fp, mid)
+            ts = extract_timestamp(line)
+            if ts is None:
+                low = mid + 1
+                continue
+
+            delta = abs((ts - targetTimeStamp).total_seconds())
+            if delta < 2:
+                # Close enough, return this line number
+                fp.seek(0)
+                line_num = 0
+                current_pos = 0
+                while current_pos < line_start:
+                    line_bytes = fp.readline()
+                    if not line_bytes:
+                        break
+                    line_num += 1
+                    current_pos += len(line_bytes)
+                return line_num
+
+            if delta < best_delta:
+                best_delta = delta
+                best_byte = line_start
+
+            if ts < targetTimeStamp:
+                low = mid + 1
+            else:
+                high = mid
+
+        # If best_delta is still inf, no timestamps found, return 0
+        if best_delta == float('inf'):
+            return 0
+
+        # Count lines from 0 to best_byte
+        fp.seek(0)
+        line_num = 0
+        current_pos = 0
+        while current_pos < best_byte:
+            line_bytes = fp.readline()
+            if not line_bytes:
+                break
+            line_num += 1
+            current_pos += len(line_bytes)
+        return line_num
 
 
 
