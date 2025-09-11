@@ -398,7 +398,7 @@ def parseAllOtherEvents(logFileContent, ruidList, dbName, dbId, logFilePath, inc
             lineInfo = parseErrorLog(logFileContent, i)
             if lineInfo['code'] == 0:
                 continue
-            
+            lineInfo['isNew'] = True
             if 'ospid' in lineInfo and 'process_name' in lineInfo:
                 trace_parent_dir = findParentWithSubdir('trace', logFilePath)
                 if not trace_parent_dir:
@@ -538,7 +538,7 @@ def parseWatsonLog(logDirectory, unzipTo):
 
     trace_errors = []
     watson_errors = []
-    seen_errors = set()
+    seen_errors = list() #set
 
     with open(watsonDifPath, 'r', encoding='utf-8', errors='ignore') as f:
         for line in f.readlines():
@@ -577,7 +577,7 @@ def parseWatsonLog(logDirectory, unzipTo):
                     entry_tuple = tuple(sorted(entry.items()))
                     if entry_tuple not in seen_errors:
                         trace_errors.append(entry)
-                        seen_errors.add(entry_tuple)
+                        seen_errors.append(entry_tuple)
 
             elif dif_match:
                 dif_file = dif_match.group(1)
@@ -592,7 +592,7 @@ def parseWatsonLog(logDirectory, unzipTo):
                     entry_tuple = tuple(sorted(entry.items()))
                     if entry_tuple not in seen_errors:
                         watson_errors.append(entry)
-                        seen_errors.add(entry_tuple)
+                        seen_errors.append(entry_tuple)
 
             elif log_match and not dif_match and not trc_match:
                 log_file = log_match.group(1)
@@ -607,6 +607,6 @@ def parseWatsonLog(logDirectory, unzipTo):
                     entry_tuple = tuple(sorted(entry.items()))
                     if entry_tuple not in seen_errors:
                         watson_errors.append(entry)
-                        seen_errors.add(entry_tuple)
+                        seen_errors.append(entry_tuple)
 
     return trace_errors, watson_errors

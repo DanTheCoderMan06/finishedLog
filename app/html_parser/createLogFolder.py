@@ -87,15 +87,54 @@ def createLogFolder(results, results_dir):
         newRow.append(cell1)
 
         error_cell = soup.new_tag('td')
-        errors = set()
+        errors = list() #set
         for shard_group in results['history'][ruid]:
             for event in results['history'][ruid][shard_group]:
                 if event.get('errors'):
                     for error in event.get('errors'):
-                        errors.add(error.get('code'))
+                        if error.get('code') not in errors:
+                            errors.append(error.get('code'))
         error_cell.string = str(errors) if errors else "No Errors"
         newRow.append(error_cell)
         tableBody.append(newRow)
+
+    if 'clean_run_diff' in results and results['clean_run_diff']:
+        container = soup.find('div', class_='container')
+        diff_title = soup.new_tag('h1', attrs={'class': 'main-title'})
+        diff_title.string = "Clean Run Diff"
+        container.append(diff_title)
+        diff_container = soup.new_tag('div', attrs={'class': 'table-container'})
+        diff_table = soup.new_tag('table')
+        diff_thead = soup.new_tag('thead')
+        diff_tr = soup.new_tag('tr')
+        headers = ["Timestamp", "Error Code", "Message"]
+        for header_text in headers:
+            diff_th = soup.new_tag('th')
+            diff_th.string = header_text
+            diff_tr.append(diff_th)
+        diff_thead.append(diff_tr)
+        diff_table.append(diff_thead)
+        diff_tbody = soup.new_tag('tbody')
+        for item in results['clean_run_diff']:
+            new_row = soup.new_tag('tr')
+            
+            ts_cell = soup.new_tag('td')
+            ts_cell.string = item.get('timestamp', '')
+            new_row.append(ts_cell)
+            
+            code_cell = soup.new_tag('td')
+            code_cell.string = str(item.get('code', ''))
+            new_row.append(code_cell)
+            
+            msg_cell = soup.new_tag('td')
+            msg_cell.string = item.get('original', '')
+            new_row.append(msg_cell)
+            
+            diff_tbody.append(new_row)
+        
+        diff_table.append(diff_tbody)
+        diff_container.append(diff_table)
+        container.append(diff_container)
 
     if 'trace_errors' in results and results['trace_errors']:
         container = soup.find('div', class_='container')
@@ -254,6 +293,57 @@ def createLogFolder(results, results_dir):
         gsm_container.append(gsm_table)
         container.append(gsm_container)
 
+    if 'clean_run_diff' in results and results['clean_run_diff']:
+        container = soup.find('div', class_='container')
+        diff_title = soup.new_tag('h1', attrs={'class': 'main-title'})
+        diff_title.string = "New Errors (Clean Run Diff)"
+        container.append(diff_title)
+        diff_container = soup.new_tag('div', attrs={'class': 'table-container'})
+        diff_table = soup.new_tag('table')
+        diff_thead = soup.new_tag('thead')
+        diff_tr = soup.new_tag('tr')
+        headers = ["Timestamp", "Error Code", "Message", "File"]
+        for header_text in headers:
+            diff_th = soup.new_tag('th')
+            diff_th.string = header_text
+            diff_tr.append(diff_th)
+        diff_thead.append(diff_tr)
+        diff_table.append(diff_thead)
+        diff_tbody = soup.new_tag('tbody')
+        for item in results['clean_run_diff']:
+            new_row = soup.new_tag('tr')
+            
+            ts_cell = soup.new_tag('td')
+            ts_cell.string = item.get('timestamp', '')
+            new_row.append(ts_cell)
+            
+            code_cell = soup.new_tag('td')
+            code_cell.string = str(item.get('code', ''))
+            new_row.append(code_cell)
+            
+            msg_cell = soup.new_tag('td')
+            msg_cell.string = item.get('original', '')
+            new_row.append(msg_cell)
+
+            file_cell = soup.new_tag('td')
+            if 'ospFile' in item and item['ospFile']:
+                osp_path = item['ospFile']
+                link_path = copy_file_to_report_dir(osp_path, logDirectory)
+                if 'scrollIndex' in item:
+                    link_path += f"#line{item['scrollIndex']}"
+                error_file = soup.new_tag('a', attrs={'href': link_path, 'target' : "_blank"})
+                error_file.string = os.path.basename(osp_path)
+                file_cell.append(error_file)
+            else:
+                file_cell.string = "N/A"
+            new_row.append(file_cell)
+            
+            diff_tbody.append(new_row)
+        
+        diff_table.append(diff_tbody)
+        diff_container.append(diff_table)
+        container.append(diff_container)
+
     resultingHTML = soup.prettify()
 
     with open(os.path.join(logDirectory,"index.html"), 'w', encoding='utf-8') as f:
@@ -288,11 +378,12 @@ def createLogFolder(results, results_dir):
             newRow.append(cell1)
 
             error_cell = soup.new_tag('td')
-            errors = set()
+            errors = list() #set
             for event in results['history'][ruid][shardGroup]:
                 if event.get('errors'):
                     for error in event.get('errors'):
-                        errors.add(error.get('code'))
+                        if error.get('code') not in errors:
+                            errors.append(error.get('code'))
             error_cell.string = str(errors) if errors else "No Errors"
             newRow.append(error_cell)
             shardGroupList.append(newRow)
@@ -310,8 +401,13 @@ def createLogFolder(results, results_dir):
                 log_result_error = False
                 if logResult.get('errors'):
                     log_result_error = True
+                
+                has_new_error = (ruid, shardGroup, logResult['term']) in results.get('terms_with_new_errors', set())
+                
                 newRow = soup.new_tag('tr')
-                if log_result_error:
+                if has_new_error:
+                    newRow['class'] = 'error-highlight-new'
+                elif log_result_error:
                     newRow['class'] = 'error-highlight'
 
                 history_filename = "history_{}.html".format(uuid.uuid4())
@@ -353,7 +449,13 @@ def createLogFolder(results, results_dir):
 
                 for history_item in all_events:
                     history_item_row = soup.new_tag('tr', attrs={'class': 'hoverable-row'})
-                    if history_item.get('type') == 'error' and history_item.get('code') != 3113:
+                    is_new_error = False
+                    if history_item in results.get('clean_run_diff', []):
+                        is_new_error = True
+
+                    if is_new_error:
+                        history_item_row['class'] = history_item_row.get('class', []) + ['error-highlight-new']
+                    elif history_item.get('type') == 'error' and history_item.get('code') != 3113:
                         history_item_row['class'] = history_item_row.get('class', []) + ['error-highlight']
 
                     ts_cell = soup.new_tag('td')

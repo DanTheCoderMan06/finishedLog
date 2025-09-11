@@ -6,6 +6,7 @@ import traceback
 from tqdm import tqdm
 import json
 from datetime import datetime, timedelta
+import pandas as pd
 
 def batch_parse(report_dir, start_dir, max_files=None, show_errors=False):
     results = []
@@ -19,6 +20,20 @@ def batch_parse(report_dir, start_dir, max_files=None, show_errors=False):
             cache = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         cache = {}
+
+    # Load clean run errors cache
+    clean_run_cache_path = os.path.join(os.path.dirname(report_dir), 'clean_run_errors_cache.parquet')
+    clean_run_errors = {}
+    try:
+        df = pd.read_parquet(clean_run_cache_path)
+        for _, row in df.iterrows():
+            lrg = row['lrg']
+            if lrg not in clean_run_errors:
+                clean_run_errors[lrg] = []
+            clean_run_errors[lrg].append(dict(row))
+    except (FileNotFoundError, pd.errors.EmptyDataError):
+        clean_run_errors = {}
+        print("No clean run errors cache found.")
 
     now = datetime.now()
     
@@ -81,7 +96,15 @@ def batch_parse(report_dir, start_dir, max_files=None, show_errors=False):
                                     if error_links:
                                         details += f"Incidents: {', '.join(error_links)}<br>"
 
-                            results.append({'dir': dir_name, 'status': 'Success', 'details': details, 'log_contents': log_contents, 'is_new': is_new, 'days_existed': days_existed, 'first_seen': cache[dir_name]['date'], 'last_prev_seen': cache[dir_name]['lastReset'], 'current_date': cache[dir_name]['last_accessed']})
+                                # Add clean run diff info to details
+                                clean_run_diff = log_contents.get('clean_run_diff', [])
+                                if clean_run_diff:
+                                    details += f"New errors since clean run: {len(clean_run_diff)}<br>"
+                                else:
+                                    details += "No new errors since clean run.<br>"
+
+                            new_errors_count = len(log_contents.get('clean_run_diff', []))
+                            results.append({'dir': dir_name, 'status': 'Success', 'details': details, 'log_contents': log_contents, 'is_new': is_new, 'days_existed': days_existed, 'first_seen': cache[dir_name]['date'], 'last_prev_seen': cache[dir_name]['lastReset'], 'current_date': cache[dir_name]['last_accessed'], 'new_errors': new_errors_count})
                         except Exception as e:
                             error_message = f"{e}\n{traceback.format_exc()}"
                             results.append({'dir': dir_name, 'status': 'Failed', 'details': error_message, 'log_contents': None, 'is_new': False, 'days_existed': 0, 'first_seen': now.isoformat(), 'last_prev_seen': now.isoformat(), 'current_date': now.isoformat()})
@@ -146,6 +169,7 @@ def batch_parse(report_dir, start_dir, max_files=None, show_errors=False):
         first_seen = result.get('first_seen', '')
         last_prev_seen = result.get('last_prev_seen', '')
         current_date = result.get('current_date', '')
+        new_errors_count = result.get('new_errors', 0)
         table_rows += f"""
         <tr class="{row_class}">
             <td>{link}</td>
@@ -154,15 +178,115 @@ def batch_parse(report_dir, start_dir, max_files=None, show_errors=False):
             <td>{last_prev_seen}</td>
             <td>{current_date}</td>
             <td>{days_existed}</td>
+            <td>{new_errors_count}</td>
             <td>{details}</td>
         </tr>
         """
     
     new_reports_count = sum(1 for r in results if r.get('is_new'))
-    
+
+    # Generate error tables for each LRG with new errors
+    error_tables = ""
+    for result in results:
+        if result.get('status') == 'Success' and result.get('log_contents') and 'clean_run_diff' in result['log_contents'] and result['log_contents']['clean_run_diff']:
+            dir_name = result['dir']
+            error_tables += f"""
+    <h2>New Errors for {dir_name}</h2>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Error Code</th>
+                    <th>Message</th>
+                    <th>File</th>
+                </tr>
+            </thead>
+            <tbody>
+"""
+            for error in result['log_contents']['clean_run_diff']:
+                timestamp = error.get('timestamp', '')
+                code = str(error.get('code', ''))
+                message = error.get('original', '')
+                file_cell = "N/A"
+                if 'ospFile' in error and error['ospFile']:
+                    file_path = os.path.basename(error['ospFile'])
+                    link = f'<a href="{dir_name}/{file_path}" target="_blank">{file_path}</a>'
+                    if 'scrollIndex' in error:
+                        link = f'<a href="{dir_name}/{file_path}#line{error["scrollIndex"]}" target="_blank">{file_path}</a>'
+                    file_cell = link
+                error_tables += f"""
+                <tr>
+                    <td>{timestamp}</td>
+                    <td>{code}</td>
+                    <td>{message}</td>
+                    <td>{file_cell}</td>
+                </tr>
+"""
+            error_tables += """
+            </tbody>
+        </table>
+    </div>
+"""
+
+    # Generate aggregate table for all new errors from new directories
+    new_errors_table = ""
+    all_new_errors = []
+    for result in results:
+        if result.get('is_new') and result.get('log_contents') and 'clean_run_diff' in result['log_contents']:
+            all_new_errors.extend(result['log_contents']['clean_run_diff'])
+
+    if all_new_errors:
+        new_errors_table = """
+    <h2>All New Errors from New Directories</h2>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Directory</th>
+                    <th>Timestamp</th>
+                    <th>Error Code</th>
+                    <th>Message</th>
+                    <th>File</th>
+                </tr>
+            </thead>
+            <tbody>
+"""
+        for result in results:
+            if result.get('is_new') and result.get('log_contents') and 'clean_run_diff' in result['log_contents']:
+                dir_name = result['dir']
+                for error in result['log_contents']['clean_run_diff']:
+                    timestamp = error.get('timestamp', '')
+                    code = str(error.get('code', ''))
+                    message = error.get('original', '')
+                    file_cell = "N/A"
+                    if 'ospFile' in error and error['ospFile']:
+                        file_path = os.path.basename(error['ospFile'])
+                        link = f'<a href="{dir_name}/{file_path}" target="_blank">{file_path}</a>'
+                        if 'scrollIndex' in error:
+                            link = f'<a href="{dir_name}/{file_path}#line{error["scrollIndex"]}" target="_blank">{file_path}</a>'
+                        file_cell = link
+                    new_errors_table += f"""
+                <tr>
+                    <td>{dir_name}</td>
+                    <td>{timestamp}</td>
+                    <td>{code}</td>
+                    <td>{message}</td>
+                    <td>{file_cell}</td>
+                </tr>
+"""
+        new_errors_table += """
+            </tbody>
+        </table>
+    </div>
+"""
+
     final_html = template_html.replace('{table_rows}', table_rows)
     final_html = final_html.replace('{source_dir}', start_dir)
     final_html = final_html.replace('{new_reports_count}', str(new_reports_count))
+    final_html = final_html.replace('<th>Details</th>', '<th>New Errors</th><th>Details</th>')
+    final_html = final_html.replace('{error_tables}', error_tables)
+    final_html = final_html.replace('{new_errors_table}', new_errors_table)
     
     with open(os.path.join(report_dir, 'index.html'), 'w') as f:
         f.write(final_html)
