@@ -71,10 +71,12 @@
             "name": "Python: Parser",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/test.py",
+            "program": "${workspaceFolder}/app/clean_run_report.py",
             "console": "integratedTerminal",
             "args": [
-           
+                "./scratch/reports",
+                "C:\\Users\\danii\\OneDrive\\Documents\\lrgDir",
+                "--test",
             ]
         },
     ]

@@ -5,7 +5,7 @@ import html_parser
 import file_parser
 import gzip
 import shutil
-
+import pandas as pd
 # ./scratch/reports C:\\Users\\danii\\OneDrive\\Documents\\mytar2\\lrgdbcongsmshsnr17
 
 
@@ -130,6 +130,28 @@ def parseLog(logDirectory, directoryName):
     logContents['rmdbs'] = rmdbs
     logContents['shardGroups'] = shardGroups
     logContents['history'], _ = log_parser.parseHistory(allRUIDs, rmdbs, logFiles, dbIds, report_dir)
+
+    cache_path = os.path.join(os.path.dirname(logDirectory), 'clean_run_errors_cache.parquet')
+    clean_run_errors = []
+    if os.path.exists(cache_path):
+        print(f"Reading clean run error cache from {cache_path}")
+        df = pd.read_parquet(cache_path)
+        clean_run_errors = df.to_dict('records')
+        for error in clean_run_errors:
+            ruid = error.get('ruid')
+            shard_group = error.get('shard_group')
+            term = error.get('term')
+            code = error.get('code')
+            if ruid and shard_group and term and ruid in logContents['history'] and shard_group in logContents['history'][ruid]:
+                termGroup = logContents['history'][ruid][shard_group][term - 1]
+
+                for event in termGroup.get('errors', []):
+                    isEqual = event.get('code') == code
+                    #breakpoint()
+                    if isEqual:
+                        event['isOld'] = True
+                        break
+
     logContents['allRUIDS'] = allRUIDs
     logContents['logDirectory'] = directoryName
     logContents['trace_errors'], logContents['watson_errors'] = log_parser.parseWatsonLog(directoryName, toUnzip)

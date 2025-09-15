@@ -130,6 +130,7 @@ tbody tr:not(.status-lost-service):not(.status-recovered):not(.status-info):hove
 .event-switch { background-color: #dbeafe; color: #1e40af; }
 .event-loss { background-color: #fef3c7; color: #92400e; }
 .event-error { background-color: #fee2e2; color: #991b1b; }
+.event-error-new { background-color: #fee2fa; color: #ff4de4; }
 
 /* Hover-to-show Info Tooltip */
 .hoverable-row {
@@ -171,6 +172,10 @@ a:hover { text-decoration: none; color:blue; }
 
 .error-highlight {
     background-color: #fee2e2 !important;
+}
+
+.error-highlight-new {
+    background-color: #f7bbff !important;
 }
 
 .tooltip {
