@@ -6,6 +6,10 @@ import file_parser
 import gzip
 import shutil
 import pandas as pd
+<<<<<<< HEAD
+=======
+
+>>>>>>> 7d256a2621250710c5482ddefa3d241c64504aec
 # ./scratch/reports C:\\Users\\danii\\OneDrive\\Documents\\mytar2\\lrgdbcongsmshsnr17
 
 
@@ -20,11 +24,11 @@ def parseLog(logDirectory, directoryName):
     fileName = ""
     logContents = {}
     rmdbs = []
-    shardGroups = set()
+    shardGroups = list() #set
     dbCounter = 1
     ruidLists = {}
     logFiles = []
-    allRUIDs = set()
+    allRUIDs = list() #set
     dbIds = {}
 
     if directoryName == '.':
@@ -84,7 +88,8 @@ def parseLog(logDirectory, directoryName):
             if shardGroup == "NULL":
                 raise ValueError("Error from add shard command on line {}, failed to parse db + shardgroup info lines!".format(i + 1))
 
-            shardGroups.add(shardGroup)
+            if shardGroup not in shardGroups:
+                shardGroups.append(shardGroup)
             dbIds[rmdb] = dbCounter
             rmdbs.append({'dbName': rmdb, 'dbID': dbCounter, 'shardGroup': shardGroup, 'logFolderNames' : file_parser.findMainDirs(os.path.join(extractionDirectory, 'diag', 'rdbms', rmdb))})
             dbCounter += 10
@@ -107,11 +112,12 @@ def parseLog(logDirectory, directoryName):
             with open(logFile['logFile'], 'r', encoding='utf-8', errors='ignore') as file:
                 logLines = file.readlines()
             if logFile['dbName'] not in ruidLists:
-                ruidLists[logFile['dbName']] = set()
+                ruidLists[logFile['dbName']] = list() #set
             for i in range(len(logLines)):
                 ruID = log_parser.parseRUIDLine(logLines[i])
                 if ruID > 0:
-                    ruidLists[logFile['dbName']].add(ruID)
+                    if ruID not in ruidLists[logFile['dbName']]:
+                        ruidLists[logFile['dbName']].append(ruID)
         except Exception as e:
             raise ValueError("Error: Failed to parse log file for {}, {}".format(logFile['dbName'], type(e).__name__))
 
@@ -119,7 +125,8 @@ def parseLog(logDirectory, directoryName):
 
     for ruids in ruidLists.values():
         for ruid in ruids:
-            allRUIDs.add(ruid)
+            if ruid not in allRUIDs:
+                allRUIDs.append(ruid)
 
     print("Parsing History")
 
@@ -156,6 +163,47 @@ def parseLog(logDirectory, directoryName):
     logContents['logDirectory'] = directoryName
     logContents['trace_errors'], logContents['watson_errors'] = log_parser.parseWatsonLog(directoryName, toUnzip)
     logContents['gsm_errors'] = log_parser.parse_gsm_logs(report_dir, directoryName)
+
+    # Read clean run cache if it exists
+    cache_path = os.path.join(os.path.dirname(logDirectory), 'clean_run_errors_cache.parquet')
+    clean_run_errors = []
+    all_new_errors = []
+    if os.path.exists(cache_path):
+        print(f"Reading clean run error cache from {cache_path}")
+        df = pd.read_parquet(cache_path)
+        clean_run_errors = df.to_dict('records')
+        for error in clean_run_errors:
+            ruid = error.get('ruid')
+            shard_group = error.get('shard_group')
+            term = error.get('term')
+            timestamp = error.get('timestamp')
+            if ruid and shard_group and term and ruid in logContents['history'] and shard_group in logContents['history'][ruid]:
+                for event in logContents['history'][ruid][shard_group]:
+                    if event['timestamp'] == timestamp:
+                        event['isNew'] = False
+
+    # Calculate Clean Run Diff
+    all_current_errors = logContents.get('trace_errors', []) + logContents.get('watson_errors', []) + logContents.get('gsm_errors', [])
+    
+    def is_error_in_list(error, error_list):
+        # Simplified comparison based on a few key fields
+        for e in error_list:
+            if error.get('code') == e.get('code') and error.get('original') == e.get('original'):
+                return True
+        return False
+
+    clean_run_diff = [error for error in all_current_errors if not is_error_in_list(error, clean_run_errors)]
+    logContents['clean_run_diff'] = clean_run_diff
+
+    # Identify term histories with new errors
+    terms_with_new_errors = set()
+    for error in clean_run_diff:
+        ruid = error.get('ruid')
+        shard_group = error.get('shard_group')
+        term = error.get('term')
+        if ruid and shard_group and term:
+            terms_with_new_errors.add((ruid, shard_group, term))
+    logContents['terms_with_new_errors'] = terms_with_new_errors
 
     print("Creating Log Folder")
 
