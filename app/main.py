@@ -133,10 +133,10 @@ def parseLog(logDirectory, directoryName, clean_run_mode=False):
     logContents['rmdbs'] = rmdbs
     logContents['shardGroups'] = shardGroups
     logContents['history'], _ = log_parser.parseHistory(allRUIDs, rmdbs, logFiles, dbIds, report_dir)
+    new_errors = []
 
     if clean_run_mode != True:
         cache_path = os.path.join(os.path.dirname(logDirectory), 'clean_run_errors_cache.parquet')
-        clean_run_errors = []
         dir_base_name = os.path.basename(directoryName)
         clean_run_errors_dict = {}
         for ruid, shardgroup_data in logContents['history'].items():
@@ -158,6 +158,7 @@ def parseLog(logDirectory, directoryName, clean_run_mode=False):
                     continue
                 error = dict(row)
                 clean_run_errors_dict[ruid][shardgroup][term].append(error)
+                
 
         for ruid, shardgroup_data in logContents['history'].items():
             for shardgroup, term_data in shardgroup_data.items():
@@ -165,7 +166,7 @@ def parseLog(logDirectory, directoryName, clean_run_mode=False):
                     currentTerm = term_data[i].get('term', None)
                     clean_run_error_list = clean_run_errors_dict[ruid][shardgroup][currentTerm]
                     filtered_errors = [error for error in clean_run_error_list]
-                    breakpoint()
+                    # breakpoint()
                     if filtered_errors:
                         cached_errors = filtered_errors
                         current_errors = term_data[i].get('errors', [])
@@ -179,6 +180,7 @@ def parseLog(logDirectory, directoryName, clean_run_mode=False):
                             if code in cached_error_codes:
                                 if current_error_codes.index(code) != cached_error_codes.index(code):
                                     event['isNew'] = True
+                                    new_errors.append(event)
                                 else:
                                     event['isNew'] = False
                                 event['isOld'] = True
@@ -203,18 +205,10 @@ def parseLog(logDirectory, directoryName, clean_run_mode=False):
                 return True
         return False
 
-    clean_run_diff = [error for error in all_current_errors if not getattr(error, 'isOld', False)]
+    clean_run_diff = new_errors
     logContents['clean_run_diff'] = clean_run_diff
 
     # Identify term histories with new errors
-    terms_with_new_errors = set()
-    for error in clean_run_diff:
-        ruid = error.get('ruid')
-        shard_group = error.get('shard_group')
-        term = error.get('term')
-        if ruid and shard_group and term:
-            terms_with_new_errors.add((ruid, shard_group, term))
-    logContents['terms_with_new_errors'] = terms_with_new_errors
 
     print("Creating Log Folder")
 

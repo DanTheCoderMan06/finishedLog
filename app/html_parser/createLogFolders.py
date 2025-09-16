@@ -449,8 +449,8 @@ def createLogFolder(results, results_dir):
 
                 for history_item in all_events:
                     history_item_row = soup.new_tag('tr', attrs={'class': 'hoverable-row'})
-                    if history_item.get('type') == 'error' and history_item.get('code') != 3113:
-                        history_item_row['class'] = history_item_row.get('class', []) 
+                    if history_item.get('type') == 'error':
+                        history_item_row['class'] = history_item_row.get('class', [])
                         if history_item.get('isOld') == True:
                             history_item_row['class'].append('event-error')
                         else:
