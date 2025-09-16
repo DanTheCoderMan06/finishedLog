@@ -174,18 +174,15 @@ def parseLog(logDirectory, directoryName, clean_run_mode=False):
                         cached_error_codes = [e.get('code') for e in cached_errors]
                         current_error_codes = [e.get('code') for e in current_errors]
 
-                        for i, event in enumerate(current_errors):
-                            event['isOld'] = False  # Reset isOld flag
-                            code = event.get('code')
-                            if code in cached_error_codes:
-                                if current_error_codes.index(code) != cached_error_codes.index(code):
-                                    event['isNew'] = True
-                                    new_errors.append(event)
-                                else:
-                                    event['isNew'] = False
-                                event['isOld'] = True
-                            else:
+                        for i in range(len(current_error_codes)):
+                            if i >= len(cached_error_codes) or current_error_codes[i] != cached_error_codes[i]:
+                                event = current_errors[i]
                                 event['isNew'] = True
+                                newevent = event.copy()
+                                newevent['ruid'] = ruid
+                                newevent['shard_group'] = shardgroup
+                                newevent['term'] = currentTerm
+                                new_errors.append(newevent)
 
                 
 

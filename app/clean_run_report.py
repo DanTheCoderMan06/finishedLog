@@ -72,8 +72,16 @@ def clean_run_report(report_dir, start_dir, test=False):
     if all_errors:
         df = pd.DataFrame(all_errors)
 
-        
-    
+        # Apply test mode: randomly remove some errors
+        if test and len(df) > 0:
+            # Remove 30-70% of errors randomly for testing
+            remove_percentage = random.uniform(0.3, 0.7)
+            num_to_remove = int(len(df) * remove_percentage)
+            if num_to_remove > 0:
+                indices_to_remove = random.sample(range(len(df)), num_to_remove)
+                df = df.drop(indices_to_remove).reset_index(drop=True)
+                print(f"Test mode: Removed {num_to_remove} errors ({remove_percentage:.1%}) for watson.dif testing")
+
         # Save cache in parent directory of start_dir
         cache_path = os.path.join(os.path.dirname(report_dir), 'clean_run_errors_cache.parquet')
         df.to_parquet(cache_path, index=False)

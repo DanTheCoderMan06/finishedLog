@@ -302,7 +302,7 @@ def createLogFolder(results, results_dir):
         diff_table = soup.new_tag('table')
         diff_thead = soup.new_tag('thead')
         diff_tr = soup.new_tag('tr')
-        headers = ["Timestamp", "Error Code", "Message", "File"]
+        headers = ["Timestamp", "Error Code", "Message", "File", "RUID", "Shard Group", "Term"]
         for header_text in headers:
             diff_th = soup.new_tag('th')
             diff_th.string = header_text
@@ -337,6 +337,18 @@ def createLogFolder(results, results_dir):
             else:
                 file_cell.string = "N/A"
             new_row.append(file_cell)
+
+            msg_cell = soup.new_tag('td')
+            msg_cell.string = str(item.get('ruid', ''))
+            new_row.append(msg_cell)
+
+            msg_cell = soup.new_tag('td')
+            msg_cell.string = str(item.get('shard_group', ''))
+            new_row.append(msg_cell)
+
+            msg_cell = soup.new_tag('td')
+            msg_cell.string = str(item.get('term', ''))
+            new_row.append(msg_cell)
             
             diff_tbody.append(new_row)
         
@@ -451,7 +463,7 @@ def createLogFolder(results, results_dir):
                     history_item_row = soup.new_tag('tr', attrs={'class': 'hoverable-row'})
                     if history_item.get('type') == 'error':
                         history_item_row['class'] = history_item_row.get('class', [])
-                        if history_item.get('isOld') == True:
+                        if history_item.get('isNew') != True:
                             history_item_row['class'].append('event-error')
                         else:
                             history_item_row['class'].append('event-error-new')
