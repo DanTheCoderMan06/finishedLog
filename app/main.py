@@ -6,10 +6,6 @@ import file_parser
 import gzip
 import shutil
 import pandas as pd
-<<<<<<< HEAD
-=======
-
->>>>>>> 7d256a2621250710c5482ddefa3d241c64504aec
 # ./scratch/reports C:\\Users\\danii\\OneDrive\\Documents\\mytar2\\lrgdbcongsmshsnr17
 
 
@@ -149,15 +145,16 @@ def parseLog(logDirectory, directoryName):
             shard_group = error.get('shard_group')
             term = error.get('term')
             code = error.get('code')
-            if ruid and shard_group and term and ruid in logContents['history'] and shard_group in logContents['history'][ruid]:
-                termGroup = logContents['history'][ruid][shard_group][term - 1]
+            ospid = error.get('ospid', -1)
+            breakpoint()    
+            termGroup = logContents['history'][ruid][shard_group][term]
 
-                for event in termGroup.get('errors', []):
-                    isEqual = event.get('code') == code
-                    #breakpoint()
-                    if isEqual:
-                        event['isOld'] = True
-                        break
+            for event in termGroup.get('errors', []):
+                isEqual = (event.get('code') == code) and (event.get('ospid', -1) == ospid)
+                #breakpoint()
+                if isEqual:
+                    event['isOld'] = True
+                    break
 
     logContents['allRUIDS'] = allRUIDs
     logContents['logDirectory'] = directoryName

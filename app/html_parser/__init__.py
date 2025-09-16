@@ -1,2 +1,2 @@
-from .createLogFolder import createLogFolder
-from .file_to_html import convert_file_to_html
+from .createLogFolders import *
+from .file_to_html import *

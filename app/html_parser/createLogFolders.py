@@ -449,23 +449,12 @@ def createLogFolder(results, results_dir):
 
                 for history_item in all_events:
                     history_item_row = soup.new_tag('tr', attrs={'class': 'hoverable-row'})
-<<<<<<< HEAD
                     if history_item.get('type') == 'error' and history_item.get('code') != 3113:
                         history_item_row['class'] = history_item_row.get('class', []) 
                         if history_item.get('isOld') == True:
                             history_item_row['class'].append('event-error')
                         else:
                             history_item_row['class'].append('event-error-new')
-=======
-                    is_new_error = False
-                    if history_item in results.get('clean_run_diff', []):
-                        is_new_error = True
-
-                    if is_new_error:
-                        history_item_row['class'] = history_item_row.get('class', []) + ['error-highlight-new']
-                    elif history_item.get('type') == 'error' and history_item.get('code') != 3113:
-                        history_item_row['class'] = history_item_row.get('class', []) + ['error-highlight']
->>>>>>> 7d256a2621250710c5482ddefa3d241c64504aec
 
                     ts_cell = soup.new_tag('td')
                     if 'ospFile' in history_item and history_item['ospFile']:

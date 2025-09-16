@@ -37,60 +37,30 @@ def clean_run_report(report_dir, start_dir, test=False):
             watson_dif_path = os.path.join(full_path, 'watson.dif')
             diag_path = os.path.join(full_path, 'diag')
             # If LRG has watson.dif, ignore it completely
-<<<<<<< HEAD
             if os.path.exists(watson_dif_path) and not test:
-=======
-            if os.path.exists(watson_dif_path):
->>>>>>> 7d256a2621250710c5482ddefa3d241c64504aec
                 continue
 
             if os.path.exists(diag_path) and os.path.isdir(diag_path) and os.path.exists(os.path.join(diag_path, 'rdbms')):
                 # Parse log to get errors (assuming it's a clean run)
                 try:
                     log_contents = main.parseLog(report_dir, full_path)
-<<<<<<< HEAD
-=======
-                    trace_errors = log_contents.get('trace_errors', [])
-                    watson_errors = log_contents.get('watson_errors', [])
-                    gsm_errors = log_contents.get('gsm_errors', [])
->>>>>>> 7d256a2621250710c5482ddefa3d241c64504aec
 
                     # Extract errors from the history structure
-                    if 'history' in log_contents and log_contents['history']:
-                        for ruid, shard_groups in log_contents['history'].items():
-                            for shard_group, events in shard_groups.items():
-<<<<<<< HEAD
-                                for term in range(len(events)):
-                                    termEvents = events[term]
-                                    for event in termEvents.get('errors'):
-                                        error_entry = event.copy()
-                                        error_entry['ruid'] = ruid
-                                        error_entry['shard_group'] = shard_group
-                                        error_entry['term'] = term
-                                        error_entry['lrg'] = subdir
-                                        all_errors.append(error_entry)
+                    #breakpoint()
+                    for ruid, shard_groups in log_contents['history'].items():
+                        #breakpoint()
+                        for shard_group, events in shard_groups.items():
+                            for term in range(len(events)):
+                                termEvents = events[term]
+                                for event in termEvents.get('errors'):
+                                    error_entry = event.copy()
+                                    error_entry['ruid'] = ruid
+                                    error_entry['shard_group'] = shard_group
+                                    error_entry['term'] = term
+                                    error_entry['lrg'] = subdir
+                                    all_errors.append(error_entry)
 
                     results.append({'dir': subdir, 'status': 'Clean run processed', 'error_count': len(all_errors)})
-=======
-                                for event in events:
-                                    if 'errors' in event and event['errors']:
-                                        for error in event['errors']:
-                                            error['ruid'] = ruid
-                                            error['shard_group'] = shard_group
-                                            error['term'] = event['term']
-                                            trace_errors.append(error)
-
-                    # Add LRG name to each error
-                    for error in trace_errors:
-                        error['lrg'] = subdir
-                    for error in watson_errors:
-                        error['lrg'] = subdir
-                    for error in gsm_errors:
-                        error['lrg'] = subdir
-
-                    all_errors.extend(trace_errors + watson_errors + gsm_errors)
-                    results.append({'dir': subdir, 'status': 'Clean run processed', 'error_count': len(trace_errors) + len(watson_errors) + len(gsm_errors)})
->>>>>>> 7d256a2621250710c5482ddefa3d241c64504aec
                 except Exception as e:
                     error_message = f"{e}\n{traceback.format_exc()}"
                     results.append({'dir': subdir, 'status': 'Failed to parse', 'error_count': 0})
@@ -102,20 +72,8 @@ def clean_run_report(report_dir, start_dir, test=False):
     if all_errors:
         df = pd.DataFrame(all_errors)
 
-        # Apply test mode: randomly remove some errors
-        if test and len(df) > 0:
-            # Remove 30-70% of errors randomly for testing
-<<<<<<< HEAD
-            remove_percentage = 0 #random.uniform(0.3, 0.7)
-=======
-            remove_percentage = random.uniform(0.3, 0.7)
->>>>>>> 7d256a2621250710c5482ddefa3d241c64504aec
-            num_to_remove = int(len(df) * remove_percentage)
-            if num_to_remove > 0:
-                indices_to_remove = random.sample(range(len(df)), num_to_remove)
-                df = df.drop(indices_to_remove).reset_index(drop=True)
-                print(f"Test mode: Removed {num_to_remove} errors ({remove_percentage:.1%}) for watson.dif testing")
-
+        
+    
         # Save cache in parent directory of start_dir
         cache_path = os.path.join(os.path.dirname(report_dir), 'clean_run_errors_cache.parquet')
         df.to_parquet(cache_path, index=False)
@@ -124,11 +82,7 @@ def clean_run_report(report_dir, start_dir, test=False):
         print("No errors found to cache.")
 
     # Load template
-<<<<<<< HEAD
     template_path = os.path.join(os.path.dirname(__file__), 'html_assets', 'template', 'clean_run.html')
-=======
-    template_path = os.path.join(os.path.dirname(__file__), 'html_assets', 'template', 'batch_report.html')
->>>>>>> 7d256a2621250710c5482ddefa3d241c64504aec
     with open(template_path, 'r') as f:
         template_html = f.read()
 
@@ -137,10 +91,6 @@ def clean_run_report(report_dir, start_dir, test=False):
     import shutil
     shutil.copy(css_path, os.path.join(report_dir, 'style.css'))
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 7d256a2621250710c5482ddefa3d241c64504aec
     # Generate table rows
     table_rows = ""
     for result in results:
@@ -181,11 +131,7 @@ def clean_run_report(report_dir, start_dir, test=False):
 
     # Write HTML file
     html_path = os.path.join(report_dir, 'clean_run.html')
-<<<<<<< HEAD
     with open(html_path, 'w', encoding='utf-8') as f:
-=======
-    with open(html_path, 'w') as f:
->>>>>>> 7d256a2621250710c5482ddefa3d241c64504aec
         f.write(final_html)
 
     print(f"Clean run report generated at {html_path}")

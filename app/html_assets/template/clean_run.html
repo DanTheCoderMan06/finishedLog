@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clean Run Report</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Clean Run Report</h1>
+        <div class="info-box">
+            <p><strong>Source Directory:</strong> {source_dir}</p>
+            <p><strong>New Reports:</strong> {new_reports_count}</p>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>LRG Directory</th>
+                    <th>Status</th>
+                    <th>Error Count</th>
+                </tr>
+            </thead>
+            <tbody>
+                {table_rows}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
