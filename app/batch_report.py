@@ -26,11 +26,16 @@ def batch_parse(report_dir, start_dir, max_files=None, show_errors=False):
     clean_run_errors = {}
     try:
         df = pd.read_parquet(clean_run_cache_path)
+        clean_run_errors = {}
         for _, row in df.iterrows():
-            lrg = row['lrg']
-            if lrg not in clean_run_errors:
-                clean_run_errors[lrg] = []
-            clean_run_errors[lrg].append(dict(row))
+            ruid = row['ruid']
+            shardgroup = row['shard_group']
+            error = dict(row)
+            if ruid not in clean_run_errors:
+                clean_run_errors[ruid] = {}
+            if shardgroup not in clean_run_errors[ruid]:
+                clean_run_errors[ruid][shardgroup] = []
+            clean_run_errors[ruid][shardgroup].append(error)
     except (FileNotFoundError, pd.errors.EmptyDataError):
         clean_run_errors = {}
         print("No clean run errors cache found.")

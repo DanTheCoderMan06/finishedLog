@@ -139,45 +139,48 @@ def parseLog(logDirectory, directoryName):
     if os.path.exists(cache_path):
         print(f"Reading clean run error cache from {cache_path}")
         df = pd.read_parquet(cache_path)
-        clean_run_errors = df.to_dict('records')
-        for error in clean_run_errors:
-            ruid = error.get('ruid')
-            shard_group = error.get('shard_group')
-            term = error.get('term')
-            code = error.get('code')
-            ospid = error.get('ospid', -1)
-            breakpoint()    
-            termGroup = logContents['history'][ruid][shard_group][term]
+        clean_run_errors_dict = {}
+        for _, row in df.iterrows():
+            ruid = row['ruid']
+            shardgroup = row['shard_group']
+            error = dict(row)
+            if ruid not in clean_run_errors_dict:
+                clean_run_errors_dict[ruid] = {}
+            if shardgroup not in clean_run_errors_dict[ruid]:
+                clean_run_errors_dict[ruid][shardgroup] = []
+            clean_run_errors_dict[ruid][shardgroup].append(error)
 
-            for event in termGroup.get('errors', []):
-                isEqual = (event.get('code') == code) and (event.get('ospid', -1) == ospid)
-                #breakpoint()
-                if isEqual:
-                    event['isOld'] = True
-                    break
+        for ruid, shardgroup_data in logContents['history'].items():
+            for shardgroup, term_data in shardgroup_data.items():
+                if ruid in clean_run_errors_dict and shardgroup in clean_run_errors_dict[ruid]:
+                    cached_errors = clean_run_errors_dict[ruid][shardgroup]
+                    current_errors = cached_errors
+                    
+                    cached_error_codes = [e.get('code') for e in cached_errors]
+                    current_error_codes = [e.get('code') for e in current_errors]
+                    
+                    for i, event in enumerate(current_errors):
+                        event['isOld'] = False  # Reset isOld flag
+                        code = event.get('code')
+                        if code in cached_error_codes:
+                            if current_error_codes.index(code) != cached_error_codes.index(code):
+                                event['isNew'] = True
+                            else:
+                                event['isNew'] = False
+                            event['isOld'] = True
+                        else:
+                            event['isNew'] = True
+                else:
+                    for term, term_data in term_data.items():
+                        if 'errors' in term_data:
+                            for event in term_data['errors']:
+                                event['isNew'] = True
+
 
     logContents['allRUIDS'] = allRUIDs
     logContents['logDirectory'] = directoryName
     logContents['trace_errors'], logContents['watson_errors'] = log_parser.parseWatsonLog(directoryName, toUnzip)
     logContents['gsm_errors'] = log_parser.parse_gsm_logs(report_dir, directoryName)
-
-    # Read clean run cache if it exists
-    cache_path = os.path.join(os.path.dirname(logDirectory), 'clean_run_errors_cache.parquet')
-    clean_run_errors = []
-    all_new_errors = []
-    if os.path.exists(cache_path):
-        print(f"Reading clean run error cache from {cache_path}")
-        df = pd.read_parquet(cache_path)
-        clean_run_errors = df.to_dict('records')
-        for error in clean_run_errors:
-            ruid = error.get('ruid')
-            shard_group = error.get('shard_group')
-            term = error.get('term')
-            timestamp = error.get('timestamp')
-            if ruid and shard_group and term and ruid in logContents['history'] and shard_group in logContents['history'][ruid]:
-                for event in logContents['history'][ruid][shard_group]:
-                    if event['timestamp'] == timestamp:
-                        event['isNew'] = False
 
     # Calculate Clean Run Diff
     all_current_errors = logContents.get('trace_errors', []) + logContents.get('watson_errors', []) + logContents.get('gsm_errors', [])
@@ -189,7 +192,7 @@ def parseLog(logDirectory, directoryName):
                 return True
         return False
 
-    clean_run_diff = [error for error in all_current_errors if not is_error_in_list(error, clean_run_errors)]
+    clean_run_diff = [error for error in all_current_errors if not getattr(error, 'isOld', False)]
     logContents['clean_run_diff'] = clean_run_diff
 
     # Identify term histories with new errors
