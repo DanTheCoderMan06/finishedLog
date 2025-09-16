@@ -98,44 +98,6 @@ def createLogFolder(results, results_dir):
         newRow.append(error_cell)
         tableBody.append(newRow)
 
-    if 'clean_run_diff' in results and results['clean_run_diff']:
-        container = soup.find('div', class_='container')
-        diff_title = soup.new_tag('h1', attrs={'class': 'main-title'})
-        diff_title.string = "Clean Run Diff"
-        container.append(diff_title)
-        diff_container = soup.new_tag('div', attrs={'class': 'table-container'})
-        diff_table = soup.new_tag('table')
-        diff_thead = soup.new_tag('thead')
-        diff_tr = soup.new_tag('tr')
-        headers = ["Timestamp", "Error Code", "Message"]
-        for header_text in headers:
-            diff_th = soup.new_tag('th')
-            diff_th.string = header_text
-            diff_tr.append(diff_th)
-        diff_thead.append(diff_tr)
-        diff_table.append(diff_thead)
-        diff_tbody = soup.new_tag('tbody')
-        for item in results['clean_run_diff']:
-            new_row = soup.new_tag('tr')
-            
-            ts_cell = soup.new_tag('td')
-            ts_cell.string = item.get('timestamp', '')
-            new_row.append(ts_cell)
-            
-            code_cell = soup.new_tag('td')
-            code_cell.string = str(item.get('code', ''))
-            new_row.append(code_cell)
-            
-            msg_cell = soup.new_tag('td')
-            msg_cell.string = item.get('original', '')
-            new_row.append(msg_cell)
-            
-            diff_tbody.append(new_row)
-        
-        diff_table.append(diff_tbody)
-        diff_container.append(diff_table)
-        container.append(diff_container)
-
     if 'trace_errors' in results and results['trace_errors']:
         container = soup.find('div', class_='container')
 
