@@ -43,8 +43,8 @@ def clean_run_report(report_dir, start_dir, test=False):
             if os.path.exists(diag_path) and os.path.isdir(diag_path) and os.path.exists(os.path.join(diag_path, 'rdbms')):
                 # Parse log to get errors (assuming it's a clean run)
                 try:
-                    log_contents = main.parseLog(report_dir, full_path)
-
+                    log_contents = main.parseLog(report_dir, full_path, True)
+                    #breakpoint()
                     # Extract errors from the history structure
                     #breakpoint()
                     for ruid, shard_groups in log_contents['history'].items():
@@ -56,7 +56,7 @@ def clean_run_report(report_dir, start_dir, test=False):
                                     error_entry = event.copy()
                                     error_entry['ruid'] = ruid
                                     error_entry['shard_group'] = shard_group
-                                    error_entry['term'] = term
+                                    error_entry['term'] = termEvents.get('term')
                                     error_entry['lrg'] = subdir
                                     all_errors.append(error_entry)
 

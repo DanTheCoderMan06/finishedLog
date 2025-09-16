@@ -16,7 +16,7 @@ import pandas as pd
 # Args:
 #     rmdbsDirectory (str): The name of the directory containing the log files.
 #     directoryName (str): The directory to port report to.
-def parseLog(logDirectory, directoryName):
+def parseLog(logDirectory, directoryName, clean_run_mode=False):
     fileName = ""
     logContents = {}
     rmdbs = []
@@ -134,47 +134,58 @@ def parseLog(logDirectory, directoryName):
     logContents['shardGroups'] = shardGroups
     logContents['history'], _ = log_parser.parseHistory(allRUIDs, rmdbs, logFiles, dbIds, report_dir)
 
-    cache_path = os.path.join(os.path.dirname(logDirectory), 'clean_run_errors_cache.parquet')
-    clean_run_errors = []
-    if os.path.exists(cache_path):
-        print(f"Reading clean run error cache from {cache_path}")
-        df = pd.read_parquet(cache_path)
+    if clean_run_mode != True:
+        cache_path = os.path.join(os.path.dirname(logDirectory), 'clean_run_errors_cache.parquet')
+        clean_run_errors = []
+        dir_base_name = os.path.basename(directoryName)
         clean_run_errors_dict = {}
-        for _, row in df.iterrows():
-            ruid = row['ruid']
-            shardgroup = row['shard_group']
-            error = dict(row)
-            if ruid not in clean_run_errors_dict:
-                clean_run_errors_dict[ruid] = {}
-            if shardgroup not in clean_run_errors_dict[ruid]:
-                clean_run_errors_dict[ruid][shardgroup] = []
-            clean_run_errors_dict[ruid][shardgroup].append(error)
+        for ruid, shardgroup_data in logContents['history'].items():
+            clean_run_errors_dict[ruid] = {}
+            for shardgroup, term_data in shardgroup_data.items():
+                clean_run_errors_dict[ruid][shardgroup] = {}
+                for i in range(len(term_data)):
+                    clean_run_errors_dict[ruid][shardgroup][i + 1] = []
+
+        if os.path.exists(cache_path):
+            print(f"Reading clean run error cache from {cache_path}")
+            df = pd.read_parquet(cache_path)
+            for _, row in df.iterrows():
+                ruid = row['ruid']
+                shardgroup = row['shard_group']
+                term = row['term']
+                lrg = row['lrg']
+                if lrg != dir_base_name:
+                    continue
+                error = dict(row)
+                clean_run_errors_dict[ruid][shardgroup][term].append(error)
 
         for ruid, shardgroup_data in logContents['history'].items():
             for shardgroup, term_data in shardgroup_data.items():
-                if ruid in clean_run_errors_dict and shardgroup in clean_run_errors_dict[ruid]:
-                    cached_errors = clean_run_errors_dict[ruid][shardgroup]
-                    current_errors = cached_errors
-                    
-                    cached_error_codes = [e.get('code') for e in cached_errors]
-                    current_error_codes = [e.get('code') for e in current_errors]
-                    
-                    for i, event in enumerate(current_errors):
-                        event['isOld'] = False  # Reset isOld flag
-                        code = event.get('code')
-                        if code in cached_error_codes:
-                            if current_error_codes.index(code) != cached_error_codes.index(code):
-                                event['isNew'] = True
+                for i in range(len(term_data)):
+                    currentTerm = term_data[i].get('term', None)
+                    clean_run_error_list = clean_run_errors_dict[ruid][shardgroup][currentTerm]
+                    filtered_errors = [error for error in clean_run_error_list]
+                    breakpoint()
+                    if filtered_errors:
+                        cached_errors = filtered_errors
+                        current_errors = term_data[i].get('errors', [])
+
+                        cached_error_codes = [e.get('code') for e in cached_errors]
+                        current_error_codes = [e.get('code') for e in current_errors]
+
+                        for i, event in enumerate(current_errors):
+                            event['isOld'] = False  # Reset isOld flag
+                            code = event.get('code')
+                            if code in cached_error_codes:
+                                if current_error_codes.index(code) != cached_error_codes.index(code):
+                                    event['isNew'] = True
+                                else:
+                                    event['isNew'] = False
+                                event['isOld'] = True
                             else:
-                                event['isNew'] = False
-                            event['isOld'] = True
-                        else:
-                            event['isNew'] = True
-                else:
-                    for term, term_data in term_data.items():
-                        if 'errors' in term_data:
-                            for event in term_data['errors']:
                                 event['isNew'] = True
+
+                
 
 
     logContents['allRUIDS'] = allRUIDs
@@ -207,7 +218,8 @@ def parseLog(logDirectory, directoryName):
 
     print("Creating Log Folder")
 
-    html_parser.createLogFolder(logContents, report_dir)
+    if clean_run_mode != True:
+        html_parser.createLogFolder(logContents, report_dir)
 
     return logContents
 
