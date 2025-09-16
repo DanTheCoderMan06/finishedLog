@@ -398,7 +398,7 @@ def parseAllOtherEvents(logFileContent, ruidList, dbName, dbId, logFilePath, inc
             lineInfo = parseErrorLog(logFileContent, i)
             if lineInfo['code'] == 0:
                 continue
-            lineInfo['isNew'] = True
+            lineInfo['isNew'] = False
             if 'ospid' in lineInfo and 'process_name' in lineInfo:
                 trace_parent_dir = findParentWithSubdir('trace', logFilePath)
                 if not trace_parent_dir:

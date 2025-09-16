@@ -16,6 +16,23 @@ import pandas as pd
 # Args:
 #     rmdbsDirectory (str): The name of the directory containing the log files.
 #     directoryName (str): The directory to port report to.
+def find_and_analyze_added_errors(original_errors, new_errors):
+    added_indices = []
+    original_idx = 0
+    new_idx = 0
+
+    while new_idx < len(new_errors):
+        is_match = (original_idx < len(original_errors) and
+                    new_errors[new_idx] == original_errors[original_idx])
+        
+        if is_match:
+            original_idx += 1
+            new_idx += 1
+        else:
+            added_indices.append(new_idx)
+            new_idx += 1
+    
+    return added_indices
 def parseLog(logDirectory, directoryName, clean_run_mode=False):
     fileName = ""
     logContents = {}

@@ -463,10 +463,10 @@ def createLogFolder(results, results_dir):
                     history_item_row = soup.new_tag('tr', attrs={'class': 'hoverable-row'})
                     if history_item.get('type') == 'error':
                         history_item_row['class'] = history_item_row.get('class', [])
-                        if history_item.get('isNew') != True:
-                            history_item_row['class'].append('event-error')
-                        else:
+                        if history_item.get('isNew', False):
                             history_item_row['class'].append('event-error-new')
+                        else:
+                            history_item_row['class'].append('event-error')
 
                     ts_cell = soup.new_tag('td')
                     if 'ospFile' in history_item and history_item['ospFile']:
