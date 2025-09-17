@@ -2,7 +2,6 @@ import os
 import sys
 from datetime import datetime
 import json
-import pandas as pd
 import main
 import traceback
 from tqdm import tqdm
@@ -19,7 +18,21 @@ def clean_run_report(report_dir, start_dir, test=False):
         test: If True, randomly remove some errors for testing watson.dif generation
     """
     results = []
+    current_lrg_errors = {}  # Dictionary to store errors for current LRGs
     all_errors = []
+
+    # Load cache if it exists
+    cache_path = os.path.join(os.path.dirname(report_dir), 'clean_run_errors_cache.json')
+    if os.path.exists(cache_path):
+        try:
+            with open(cache_path, 'r') as f:
+                cached_errors = json.load(f)
+            print(f"Loaded {len(cached_errors)} errors from {cache_path}")
+        except Exception as e:
+            print(f"Failed to load cache from {cache_path}: {e}")
+            cached_errors = []  # Ensure cached_errors is an empty list in case of failure
+    else:
+        cached_errors = []
 
     if not os.path.exists(start_dir):
         raise ValueError(f"Start directory {start_dir} does not exist.")
@@ -44,11 +57,9 @@ def clean_run_report(report_dir, start_dir, test=False):
                 # Parse log to get errors (assuming it's a clean run)
                 try:
                     log_contents = main.parseLog(report_dir, full_path, True)
-                    #breakpoint()
                     # Extract errors from the history structure
-                    #breakpoint()
+                    lrg_errors = []
                     for ruid, shard_groups in log_contents['history'].items():
-                        #breakpoint()
                         for shard_group, events in shard_groups.items():
                             for term in range(len(events)):
                                 termEvents = events[term]
@@ -58,9 +69,11 @@ def clean_run_report(report_dir, start_dir, test=False):
                                     error_entry['shard_group'] = shard_group
                                     error_entry['term'] = termEvents.get('term')
                                     error_entry['lrg'] = subdir
-                                    all_errors.append(error_entry)
+                                    lrg_errors.append(error_entry)
+                    current_lrg_errors[subdir] = lrg_errors
 
-                    results.append({'dir': subdir, 'status': 'Clean run processed', 'error_count': len(all_errors)})
+                    error_count = len(lrg_errors)
+                    results.append({'dir': subdir, 'status': 'Clean run processed', 'error_count': error_count})
                 except Exception as e:
                     error_message = f"{e}\n{traceback.format_exc()}"
                     results.append({'dir': subdir, 'status': 'Failed to parse', 'error_count': 0})
@@ -68,24 +81,32 @@ def clean_run_report(report_dir, start_dir, test=False):
             else:
                 results.append({'dir': subdir, 'status': 'Invalid structure', 'error_count': 0})
 
-    # Save all errors to parquet cache
+    # Merge cache and new errors
+    # Remove errors from cache if LRG is in current_lrg_errors
+    filtered_cache = [error for error in cached_errors if error['lrg'] not in current_lrg_errors]
+
+    # Combine cache and new errors
+    for lrg in current_lrg_errors:
+        all_errors.extend(current_lrg_errors[lrg])
+    all_errors = filtered_cache + all_errors
+
+    # Save cache
+    cache_path = os.path.join(os.path.dirname(report_dir), 'clean_run_errors_cache.json')
+
+    # Apply test mode: randomly remove some errors BEFORE saving to cache
+    if test and all_errors:
+        remove_percentage = random.uniform(0.3, 0.7)
+        num_to_remove = int(len(all_errors) * remove_percentage)
+        if num_to_remove > 0:
+            indices_to_remove = random.sample(range(len(all_errors)), num_to_remove)
+            # Create a new list excluding the removed indices
+            all_errors = [error for i, error in enumerate(all_errors) if i not in indices_to_remove]
+            print(f"Test mode: Removed {num_to_remove} errors ({remove_percentage:.1%}) for watson.dif testing")
+
     if all_errors:
-        df = pd.DataFrame(all_errors)
-
-        # Apply test mode: randomly remove some errors
-        if test and len(df) > 0:
-            # Remove 30-70% of errors randomly for testing
-            remove_percentage = random.uniform(0.3, 0.7)
-            num_to_remove = int(len(df) * remove_percentage)
-            if num_to_remove > 0:
-                indices_to_remove = random.sample(range(len(df)), num_to_remove)
-                df = df.drop(indices_to_remove).reset_index(drop=True)
-                print(f"Test mode: Removed {num_to_remove} errors ({remove_percentage:.1%}) for watson.dif testing")
-
-        # Save cache in parent directory of start_dir
-        cache_path = os.path.join(os.path.dirname(report_dir), 'clean_run_errors_cache.parquet')
-        df.to_parquet(cache_path, index=False)
-        print(f"Saved {len(df)} errors to {cache_path}")
+        with open(cache_path, 'w') as f:
+            json.dump(all_errors, f, indent=4)
+        print(f"Saved {len(all_errors)} errors to {cache_path}")
     else:
         print("No errors found to cache.")
 

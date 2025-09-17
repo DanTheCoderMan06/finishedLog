@@ -5,7 +5,6 @@ import html_parser
 import file_parser
 import gzip
 import shutil
-import pandas as pd
 # ./scratch/reports C:\\Users\\danii\\OneDrive\\Documents\\mytar2\\lrgdbcongsmshsnr17
 
 
@@ -153,7 +152,7 @@ def parseLog(logDirectory, directoryName, clean_run_mode=False):
     new_errors = []
 
     if clean_run_mode != True:
-        cache_path = os.path.join(os.path.dirname(logDirectory), 'clean_run_errors_cache.parquet')
+        cache_path = os.path.join(os.path.dirname(logDirectory), 'clean_run_errors_cache.json')
         dir_base_name = os.path.basename(directoryName)
         clean_run_errors_dict = {}
         for ruid, shardgroup_data in logContents['history'].items():
@@ -165,17 +164,20 @@ def parseLog(logDirectory, directoryName, clean_run_mode=False):
 
         if os.path.exists(cache_path):
             print(f"Reading clean run error cache from {cache_path}")
-            df = pd.read_parquet(cache_path)
-            for _, row in df.iterrows():
-                ruid = row['ruid']
-                shardgroup = row['shard_group']
-                term = row['term']
-                lrg = row['lrg']
-                if lrg != dir_base_name:
-                    continue
-                error = dict(row)
-                clean_run_errors_dict[ruid][shardgroup][term].append(error)
-                
+            try:
+                import json
+                with open(cache_path, 'r') as f:
+                    cached_errors = json.load(f)
+                for error in cached_errors:
+                    ruid = error['ruid']
+                    shardgroup = error['shard_group']
+                    term = error['term']
+                    lrg = error['lrg']
+                    if lrg != dir_base_name:
+                        continue
+                    clean_run_errors_dict[ruid][shardgroup][term].append(error)
+            except Exception as e:
+                print(f"Failed to load cache from {cache_path}: {e}")
 
         for ruid, shardgroup_data in logContents['history'].items():
             for shardgroup, term_data in shardgroup_data.items():
