@@ -5,6 +5,7 @@ import html_parser
 import file_parser
 import gzip
 import shutil
+from datetime import datetime
 # ./scratch/reports C:\\Users\\danii\\OneDrive\\Documents\\mytar2\\lrgdbcongsmshsnr17
 
 
@@ -189,6 +190,7 @@ def parseLog(logDirectory, directoryName, clean_run_mode=False):
                     if filtered_errors:
                         cached_errors = filtered_errors
                         current_errors = term_data[i].get('errors', [])
+                        current_errors.sort(key=lambda x: datetime.fromisoformat(x['timestamp']))
 
                         cached_error_codes = [e.get('code') for e in cached_errors]
                         current_error_codes = [e.get('code') for e in current_errors]

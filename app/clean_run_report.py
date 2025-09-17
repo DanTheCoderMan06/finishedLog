@@ -63,20 +63,24 @@ def clean_run_report(report_dir, start_dir, test=False):
                         for shard_group, events in shard_groups.items():
                             for term in range(len(events)):
                                 termEvents = events[term]
+                                toAdd = []
                                 for event in termEvents.get('errors'):
                                     error_entry = event.copy()
                                     error_entry['ruid'] = ruid
                                     error_entry['shard_group'] = shard_group
                                     error_entry['term'] = termEvents.get('term')
                                     error_entry['lrg'] = subdir
-                                    lrg_errors.append(error_entry)
+                                    toAdd.append(error_entry)
+                                toAdd.sort(key=lambda x: datetime.fromisoformat(x['timestamp']))
+                                lrg_errors.extend(toAdd)
+
                     current_lrg_errors[subdir] = lrg_errors
 
                     error_count = len(lrg_errors)
                     results.append({'dir': subdir, 'status': 'Clean run processed', 'error_count': error_count})
                 except Exception as e:
                     error_message = f"{e}\n{traceback.format_exc()}"
-                    results.append({'dir': subdir, 'status': 'Failed to parse', 'error_count': 0})
+                    results.append({'dir': subdir, 'status': 'Failed to parse', 'error_count': 0, 'details' : error_message})
                     print(f"Failed to parse {subdir}: {error_message}")
             else:
                 results.append({'dir': subdir, 'status': 'Invalid structure', 'error_count': 0})
@@ -94,8 +98,8 @@ def clean_run_report(report_dir, start_dir, test=False):
     cache_path = os.path.join(os.path.dirname(report_dir), 'clean_run_errors_cache.json')
 
     # Apply test mode: randomly remove some errors BEFORE saving to cache
-    if test and all_errors:
-        remove_percentage = random.uniform(0.3, 0.7)
+    if test:
+        remove_percentage = 0# random.uniform(0.3, 0.7)
         num_to_remove = int(len(all_errors) * remove_percentage)
         if num_to_remove > 0:
             indices_to_remove = random.sample(range(len(all_errors)), num_to_remove)
@@ -126,7 +130,7 @@ def clean_run_report(report_dir, start_dir, test=False):
         dir_name = result['dir']
         status = result['status']
         error_count = result.get('error_count', 0)
-
+        details = result.get("details","Success.")
         # Determine CSS class based on status
         if status == 'Clean run processed':
             status_class = 'status-success'
@@ -140,6 +144,7 @@ def clean_run_report(report_dir, start_dir, test=False):
             <td>{dir_name}</td>
             <td class="{status_class}">{status}</td>
             <td>{error_count}</td>
+            <td>{details}</td>
         </tr>
         """
 
@@ -155,7 +160,7 @@ def clean_run_report(report_dir, start_dir, test=False):
     # Adjust table headers for clean run
     final_html = final_html.replace(
         '<th>Log Directory</th>\n                    <th>Status</th>\n                    <th>First Seen</th>\n                    <th>Last time previously Seen</th>\n                    <th>Current report date</th>\n                    <th>Days Existed</th>\n                    <th>Details</th>',
-        '<th>LRG Directory</th>\n                    <th>Status</th>\n                    <th>Error Count</th>'
+        '<th>LRG Directory</th>\n                    <th>Status</th>\n                    <th>Error Count</th>\n                    <th>Details</th>\n'
     )
 
     # Write HTML file
@@ -172,8 +177,6 @@ if __name__ == "__main__":
     report_directory = sys.argv[1]
     start_directory = sys.argv[2]
     test_mode = False
-    print(sys.argv)
     if len(sys.argv) > 3 and sys.argv[3] == '--test':
         test_mode = True
-
     clean_run_report(report_directory, start_directory, test_mode)

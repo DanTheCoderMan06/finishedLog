@@ -76,7 +76,7 @@
             "args": [
                 "./scratch/reports",
                 "C:\\Users\\danii\\OneDrive\\Documents\\lrgDir",
-                "--test",
+                "--test"
             ]
         },
     ]
