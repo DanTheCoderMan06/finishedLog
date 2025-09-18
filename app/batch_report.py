@@ -6,7 +6,6 @@ import traceback
 from tqdm import tqdm
 import json
 from datetime import datetime, timedelta
-import pandas as pd
 
 def batch_parse(report_dir, start_dir, max_files=None, show_errors=False):
     results = []
@@ -20,26 +19,6 @@ def batch_parse(report_dir, start_dir, max_files=None, show_errors=False):
             cache = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         cache = {}
-
-    # Load clean run errors cache
-    clean_run_cache_path = os.path.join(os.path.dirname(report_dir), 'clean_run_errors_cache.parquet')
-    clean_run_errors = {}
-    try:
-        df = pd.read_parquet(clean_run_cache_path)
-        clean_run_errors = {}
-        for _, row in df.iterrows():
-            ruid = row['ruid']
-            shardgroup = row['shard_group']
-            error = dict(row)
-            if ruid not in clean_run_errors:
-                clean_run_errors[ruid] = {}
-            if shardgroup not in clean_run_errors[ruid]:
-                clean_run_errors[ruid][shardgroup] = []
-            clean_run_errors[ruid][shardgroup].append(error)
-    except (FileNotFoundError, pd.errors.EmptyDataError):
-        clean_run_errors = {}
-        print("No clean run errors cache found.")
-
     now = datetime.now()
     
 
